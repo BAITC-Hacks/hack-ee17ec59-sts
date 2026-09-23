@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DISTRICTS } from "@/lib/simulation";
 import type { DistrictId } from "@/lib/simulation";
 import { DISTRICT_GEOMETRY } from "./districtGeometry";
+import { SCHEMATIC_ALMATY } from "./schematicAlmaty";
 
 type DistrictMapProps = {
   values?: Partial<Record<DistrictId, number>>;
@@ -16,7 +17,10 @@ type DistrictMapProps = {
 
 const WIDTH = 640;
 const PADDING = 8;
-const coordinates = DISTRICT_GEOMETRY.flatMap((feature) => feature.coordinates.flat(2));
+const mapGeometry = DISTRICT_GEOMETRY.map((feature) =>
+  feature.id === "almaty" ? SCHEMATIC_ALMATY : feature,
+);
+const coordinates = mapGeometry.flatMap((feature) => feature.coordinates.flat(2));
 const longitudes = coordinates.map(([longitude]) => longitude);
 const latitudes = coordinates.map(([, latitude]) => latitude);
 const west = Math.min(...longitudes);
@@ -37,7 +41,7 @@ function project([longitude, latitude]: readonly [number, number]): [number, num
 }
 
 const shapes = DISTRICTS.map((district) => {
-  const geometry = DISTRICT_GEOMETRY.find((feature) => feature.id === district.id);
+  const geometry = mapGeometry.find((feature) => feature.id === district.id);
   if (!geometry) throw new Error(`Нет геометрии для района ${district.id}`);
   const path = geometry.coordinates.map((polygon) => polygon.map((ring) =>
     ring.map((point, index) => {
