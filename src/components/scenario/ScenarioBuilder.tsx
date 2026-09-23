@@ -13,6 +13,7 @@ import {
 } from "@/lib/simulation";
 import type { DistrictId, ScenarioInput, SimulationResult, ValidationError } from "@/lib/simulation";
 import { DistrictMap } from "@/components/map/DistrictMap";
+import { ParetoChart } from "@/components/pareto/ParetoChart";
 import { BudgetMeter } from "./BudgetMeter";
 import { DecisionSlot } from "./DecisionSlot";
 import type { ScenarioSlot } from "./DecisionSlot";
@@ -363,6 +364,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
               ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
               : "Цвет показывает исходную оценку района D до выбора мер."}
           </p>
+          {lastResult && <div className="mt-6"><ParetoChart result={lastResult} /></div>}
           {(aside || lastResult) && <div ref={asideRef} className="mt-6 min-w-0">
             {lastResult && <p className="mb-3 text-sm font-medium text-slate-700" aria-live="polite">
               {rankLoading ? "Определяем место среди возможных сценариев…" : rank
