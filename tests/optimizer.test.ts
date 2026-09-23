@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { enumerateValid, findBest, optimizerStats, suggestSwaps, pareto, timeline, evaluate, MEASURES, REFERENCE_SCENARIO, simulateScenario, simulateWithShare, validateScenario } from "../src/lib/simulation";
+import { enumerateValid, findBest, findWorst, scoreRank, optimizerStats, suggestSwaps, pareto, timeline, evaluate, MEASURES, REFERENCE_SCENARIO, simulateScenario, simulateWithShare, validateScenario } from "../src/lib/simulation";
 import { effectShare } from "../src/lib/simulation/numeric";
 
 describe("full server optimizer", () => {
@@ -43,6 +43,36 @@ describe("full server optimizer", () => {
 });
 
 describe("constrained tools and timeline", () => {
+  it("finds deterministic worst cases and ranks extremes and the reference by score", () => {
+    const worst = findWorst(10), best = findBest(10);
+    expect(worst).toHaveLength(10);
+    for (const entry of worst) {
+      expect(validateScenario(entry.scenario).valid).toBe(true);
+      expect(entry.score).toBeLessThanOrEqual(best.at(-1)!.score);
+    }
+    for (let i = 1; i < worst.length; i++) {
+      expect(worst[i].score).toBeGreaterThanOrEqual(worst[i - 1].score);
+      if (worst[i].score === worst[i - 1].score) expect(worst[i].cost).toBeGreaterThanOrEqual(worst[i - 1].cost);
+    }
+    expect(findWorst(10)).toEqual(worst);
+    expect(findWorst(3, { budgetMax: 80, avoidDistricts: ["yesil"] }).every(r =>
+      r.cost <= 80 && r.scenario.decisions.every(d => d.districtId !== "yesil"))).toBe(true);
+    expect(findWorst(1, { exclude: MEASURES.map(m => m.id) })).toEqual([]);
+    const topRank = scoreRank(best[0].scenario), bottomRank = scoreRank(worst[0].scenario), reference = scoreRank(REFERENCE_SCENARIO);
+    if ("error" in topRank || "error" in bottomRank || "error" in reference) throw new Error("Expected ranks");
+    expect(topRank.rank).toBe(1);
+    expect(bottomRank.rank).toBe(bottomRank.total);
+    expect(bottomRank.percentile).toBe(0);
+    expect(reference.percentile).toBeGreaterThan(0);
+    expect(reference.percentile).toBeLessThan(100);
+    const evaluated = evaluate(REFERENCE_SCENARIO);
+    if (!evaluated.valid) throw new Error("Expected valid reference");
+    const worse = enumerateValid().filter(r => r.score < evaluated.score - 1e-10).length;
+    expect(reference.percentile).toBe(100 * worse / enumerateValid().length);
+    expect(scoreRank({ decisions: [...REFERENCE_SCENARIO.decisions].reverse() })).toEqual(reference);
+    expect(scoreRank({ decisions: [] })).toHaveProperty("error");
+    console.log("RANK", JSON.stringify({ worst: worst[0], reference }));
+  });
   it("filters required/excluded measures, exact placements, districts and minimum district score", () => {
     const noYesil = findBest(10, { avoidDistricts: ["yesil"] });
     expect(noYesil).toHaveLength(10);
