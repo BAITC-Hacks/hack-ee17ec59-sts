@@ -12,19 +12,25 @@ export type ScenarioSlot = {
 type DecisionSlotProps = {
   number: number;
   slot: ScenarioSlot;
+  active?: boolean;
   errors: readonly ValidationError[];
   selectedElsewhere: ReadonlySet<string>;
+  onActivate?: () => void;
   onChange: (slot: ScenarioSlot) => void;
   onClear: () => void;
 };
 
 const categories = Object.keys(CATEGORY_LABELS) as Category[];
 
-export function DecisionSlot({ number, slot, errors, selectedElsewhere, onChange, onClear }: DecisionSlotProps) {
+export function DecisionSlot({ number, slot, active, errors, selectedElsewhere, onActivate, onChange, onClear }: DecisionSlotProps) {
   const measure = slot.measureId ? MEASURE_BY_ID.get(slot.measureId) : undefined;
 
   return (
-    <article className={`rounded-2xl border p-4 sm:p-5 ${errors.length > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
+    <article
+      onFocusCapture={onActivate}
+      onClick={onActivate}
+      className={`rounded-2xl border p-4 sm:p-5 ${errors.length > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"} ${active ? "ring-2 ring-blue-300" : ""}`}
+    >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">

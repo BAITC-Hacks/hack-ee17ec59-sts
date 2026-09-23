@@ -61,18 +61,21 @@ export default function Home() {
       <ScenarioBuilder
         key={editor.revision}
         initialScenario={editor.initialScenario}
+        initialResult={calculated?.result}
         onSimulate={(result, scenario) => { setCalculated({ result, scenario }); if (!undo) setNotice(""); }}
         onErrors={setErrors}
         onChange={invalidateResult}
+        aside={notice || calculated ? <>
+          {notice && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
+            <p>{notice}</p>
+            {undo && <button type="button" onClick={undoAdvice} className="rounded-full border border-blue-300 bg-white px-4 py-2 font-semibold hover:bg-blue-100">Отменить совет</button>}
+          </div>}
+          {calculated && <>
+            <AdviceCard key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} onApply={applyAdvice} />
+            <ResultsDashboard result={calculated.result} />
+          </>}
+        </> : null}
       />
-      {notice && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
-        <p>{notice}</p>
-        {undo && <button type="button" onClick={undoAdvice} className="rounded-full border border-blue-300 bg-white px-4 py-2 font-semibold hover:bg-blue-100">Отменить совет</button>}
-      </div>}
-      {calculated && <>
-        <AdviceCard key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} onApply={applyAdvice} />
-        <ResultsDashboard result={calculated.result} />
-      </>}
     </main>
   );
 }
