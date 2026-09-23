@@ -72,9 +72,9 @@ export default function Home() {
             {undo && <button type="button" onClick={undoAdvice} className="rounded-full border border-blue-300 bg-white px-4 py-2 font-semibold hover:bg-blue-100">Отменить совет</button>}
           </div>}
           {calculated && <>
-            <AdviceCard key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} onApply={applyAdvice} />
+            <AdviceCard key={`advice:${scenarioKey(calculated.scenario)}`} scenario={calculated.scenario} onApply={applyAdvice} />
             <ResultsDashboard result={calculated.result} />
-            <AgentPanel key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} />
+            <AgentPanel key={`agent:${scenarioKey(calculated.scenario)}`} scenario={calculated.scenario} />
           </>}
         </div> : null}
       />
