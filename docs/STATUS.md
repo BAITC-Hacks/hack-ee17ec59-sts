@@ -37,3 +37,7 @@ E3 done: enumerateValid/findBest/suggestSwaps экспортированы из 
 U6: Dockerfiles/Compose/standalone готовы; локально GET / и static JS HTTP 200. Docker CLI отсутствует — compose build/up/down не проверены, U6 review. Репетиция R1 в чистом Git-клоне прошла: npm ci 45.37 с, lint 87.97 с, 62 теста 19.28 с, build 65.06 с (всего 217.73 с, Node 22.23.2). Финальный прогон после фриза остаётся открытым. ../clean-check оставлен: автоматическая проверка отклонила удаление (blocked by policy).
 
 При финальной синхронизации получен E3a коллег: проверенный совет с Apply/Undo и /api/advice. Его код и статус сохранены; отчёт чистого клона выше относится к состоянию U6 до этого входящего коммита. После интеграции: 92 теста и standalone build прошли; /api/advice и /api/analyze собраны. Для полного прогона тестов настроены последовательные файлы и таймаут 15 с (поиск + сортировка + assertions).
+
+## A3 — готово 16:42
+
+Engine реализовал POST /api/agent (explain/chat) с engineTools, executeTool, trace, 6 раундами инструментов и финальным ответом. LLM_BASE_URL/LLM_API_KEY/LLM_MODEL через fetch; таймаут 30 с. Без ключа/при сбое explain переиспользует buildFallbackAnalysis, chat возвращает find_best по умолчанию. Демо-вопросы — src/lib/agent/demo-questions.json. Проверено: 110 тестов, один production build; live LLM/UI не входили в этот прогон. E5/U7 done по подтверждению PM; U5 cut:timeline. UI U4/A4 подключают новый маршрут.
