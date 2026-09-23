@@ -15,7 +15,7 @@ type DistrictMapProps = {
 };
 
 const WIDTH = 640;
-const PADDING = 24;
+const PADDING = 8;
 const coordinates = DISTRICT_GEOMETRY.flatMap((feature) => feature.coordinates.flat(2));
 const longitudes = coordinates.map(([longitude]) => longitude);
 const latitudes = coordinates.map(([, latitude]) => latitude);
@@ -84,9 +84,10 @@ export function DistrictMap({
   const formatValue = (value: number) => `${layer === "delta" && value > 0 ? "+" : ""}${value.toFixed(2)}`;
 
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-5">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 print:break-inside-avoid sm:p-3">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        preserveAspectRatio="xMidYMin meet"
         className="block h-auto w-full"
         role="group"
         aria-label="Карта районов Астаны"

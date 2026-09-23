@@ -181,13 +181,8 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
             />
           ))}
         </div>
-        <div className="min-w-0 lg:sticky lg:top-4">
+        <div className="min-w-0 lg:sticky lg:top-4 print:static">
           <h3 className="text-lg font-semibold text-slate-950">Районы Астаны</h3>
-          <p className="mb-3 mt-1 text-sm leading-6 text-slate-600">
-            {activeDistrictMeasure && activeSlotIndex !== null
-              ? `Решение ${activeSlotIndex + 1}: ${activeDistrictMeasure.name}. Выберите район на карте или в списке.`
-              : "Выберите районную меру в слоте, затем укажите район на карте."}
-          </p>
           {lastResult && (
             <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Слой карты">
               {(["after", "delta"] as const).map((layer) => (
@@ -215,6 +210,11 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
               ? (districtId) => updateSlot(activeSlotIndex, { measureId: activeDistrictMeasure.id, districtId })
               : undefined}
           />
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            {activeDistrictMeasure && activeSlotIndex !== null
+              ? `Решение ${activeSlotIndex + 1}: ${activeDistrictMeasure.name}. Выберите район на карте или в списке.`
+              : "Выберите районную меру в слоте, затем укажите район на карте."}
+          </p>
           <p className="mt-2 text-xs text-slate-500">
             {lastResult
               ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
