@@ -46,7 +46,7 @@ it("reads commented META and calculates absolute times at 15:00", () => {
   const output = renderBoard(root, at(15, 0));
   expect(output).toContain("Время: 15:00 (системное, местное)");
   expect(output).toContain("Старт: 14:00 | Фриз: 17:20 | Конец: 18:00");
-  expect(output).toContain("(11/26 уникальных тикетов)");
+  expect(output).toContain("(11/28 уникальных тикетов)");
   expect(output).toContain("До фриза: 140 мин");
   expect(output).toContain("До конца: 180 мин");
   expect(output).not.toContain("T+");
@@ -73,9 +73,9 @@ it("does not wrap times before start and clamps expired countdowns to zero", () 
 });
 it("requires all owners to finish a shared ticket", () => {
   update("engine", "I1", "done");
-  expect(renderBoard(root, at(15, 0))).toContain("(11/26");
+  expect(renderBoard(root, at(15, 0))).toContain("(11/28");
   update("ai", "I1", "done"); update("ui", "I1", "done");
-  expect(renderBoard(root, at(15, 0))).toContain("(12/26");
+  expect(renderBoard(root, at(15, 0))).toContain("(12/28");
 });
 it("respects the cut order and partial timeline cut", () => {
   const now = at(16, 30);

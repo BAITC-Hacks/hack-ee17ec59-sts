@@ -9,8 +9,10 @@
 | E1 | scoring: лаг, синергии, clip, D, D_avg, Score, N_crit, вклад мер | 15:10 | done | — | 15:19 | Формулы и JSON-каталог проверены; добавлен публичный getBaselineSnapshot() и общий расчет baseline/Score. |
 | E2 | Валидатор: 5 мер, бюджет, уникальность, направления, размещение, конфликты | 15:30 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
 | E3 | Оптимизатор: полный перебор, серверная мемоизация + suggestSwaps | 15:50 | done | 15:29 | 15:33 | 694395 сценариев, холодный перебор 2.29 с; top Score 57.236735; 36 тестов, lint/build зелёные. Функции готовы, экспорт: src/lib/simulation/index.ts — enumerateValid, findBest, suggestSwaps (сервер). |
+| E3b | Худшие сценарии findWorst + ранг/перцентиль scoreRank | 16:00 | todo | — | — | Только движок; UI подключает функции. |
+| E3c | engineTools + executeTool для агента | 16:20 | todo | — | — | 8 tools; JSON Schema и компактный результат. |
 | E4 | findBest(constraints), pareto(step), timeline(scenario) | 16:20 | done | 15:35 | 15:40 | Все constraints, pareto и timeline готовы; q=8 == evaluate; 40 тестов, lint/build зелёные. Функции готовы, экспорт: src/lib/simulation/index.ts; API — зона ai. Числа/контракт: docs/ENGINE_RESULTS.md. |
-| E5 | Карта react-leaflet + OSM: GeoJSON, слои, маркеры, слабейший район, ухудшения | 16:50 | todo | — | — | GeoJSON сохранён; React-карта ещё не реализована. |
+| U6 | Dockerfile Next standalone + docker-compose | 16:40 | todo | — | — |  |
 | I1 | ИНТЕГРАЦИЯ расширенного демо на одной машине, окно 16:50–17:00 | 17:00 | todo | — | — |  |
 | E6 | CUT: события (авария → бюджет −15) + лидерборд | 17:20 | cut | — | — | Убрано из объёма по решению PM: сдача в 18:00. |
 | F0 | ФРИЗ КОДА: после 17:20 пушит только ui (README) | 17:20 | todo | — | — |  |
