@@ -52,6 +52,8 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
 export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: ScenarioBuilderProps) {
   const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
+  const [lastResult, setLastResult] = useState<SimulationResult | null>(null);
+  const [mapLayer, setMapLayer] = useState<"after" | "delta">("after");
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
@@ -81,6 +83,12 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
     }
     return reasons;
   }, [activeDistrictMeasure, activeSlotIndex, slots]);
+  const mapValues: Partial<Record<DistrictId, number>> = lastResult
+    ? Object.fromEntries(lastResult.districts.map((district) => [
+      district.id,
+      mapLayer === "delta" ? district.scoreDelta : district.scoreAfter,
+    ]))
+    : BASELINE_DISTRICT_VALUES;
 
   function errorsForSlot(slot: ScenarioSlot): ValidationError[] {
     return visibleErrors.filter((error) => {
@@ -95,6 +103,8 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
   function updateSlot(index: number, slot: ScenarioSlot) {
     setSlots((current) => current.map((item, itemIndex) => itemIndex === index ? slot : item));
     setActiveSlotIndex(index);
+    setLastResult(null);
+    setMapLayer("after");
     onErrors([]);
     onScenarioChange?.();
   }
@@ -108,6 +118,8 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
       MEASURE_BY_ID.get(decision.measureId)?.scope === "district",
     );
     setActiveSlotIndex(firstDistrictIndex >= 0 ? firstDistrictIndex : null);
+    setLastResult(null);
+    setMapLayer("after");
     onErrors([]);
     onScenarioChange?.();
   }
@@ -127,6 +139,8 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
     }
 
     onErrors([]);
+    setLastResult(result);
+    setMapLayer("after");
     onSimulate(result);
   }
 
@@ -174,8 +188,26 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
               ? `Решение ${activeSlotIndex + 1}: ${activeDistrictMeasure.name}. Выберите район на карте или в списке.`
               : "Выберите районную меру в слоте, затем укажите район на карте."}
           </p>
+          {lastResult && (
+            <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Слой карты">
+              {(["after", "delta"] as const).map((layer) => (
+                <button
+                  key={layer}
+                  type="button"
+                  onClick={() => setMapLayer(layer)}
+                  aria-pressed={mapLayer === layer}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${mapLayer === layer
+                    ? "border-blue-700 bg-blue-700 text-white"
+                    : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"}`}
+                >
+                  {layer === "after" ? "D после" : "Изменение D"}
+                </button>
+              ))}
+            </div>
+          )}
           <DistrictMap
-            values={BASELINE_DISTRICT_VALUES}
+            values={mapValues}
+            layer={lastResult ? mapLayer : "before"}
             selectedDistrictId={activeDistrictMeasure ? activeSlot?.districtId : undefined}
             highlightedDistrictIds={DISTRICTS.filter((district) => disabledDistrictReasons[district.id]).map((district) => district.id)}
             disabledDistrictReasons={disabledDistrictReasons}
@@ -183,7 +215,11 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
               ? (districtId) => updateSlot(activeSlotIndex, { measureId: activeDistrictMeasure.id, districtId })
               : undefined}
           />
-          <p className="mt-2 text-xs text-slate-500">Цвет показывает исходную оценку района D до выбора мер.</p>
+          <p className="mt-2 text-xs text-slate-500">
+            {lastResult
+              ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
+              : "Цвет показывает исходную оценку района D до выбора мер."}
+          </p>
         </div>
       </div>
 

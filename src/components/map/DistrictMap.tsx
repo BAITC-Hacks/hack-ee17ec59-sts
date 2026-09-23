@@ -7,6 +7,7 @@ import { DISTRICT_GEOMETRY } from "./districtGeometry";
 
 type DistrictMapProps = {
   values?: Partial<Record<DistrictId, number>>;
+  layer?: "before" | "after" | "delta";
   selectedDistrictId?: DistrictId;
   highlightedDistrictIds?: readonly DistrictId[];
   disabledDistrictReasons?: Partial<Record<DistrictId, string>>;
@@ -47,14 +48,19 @@ const shapes = DISTRICTS.map((district) => {
   return { ...district, path, centroid: project(geometry.centroid), schematic: geometry.schematic };
 });
 
-function fillFor(value: number | undefined): string {
+function fillFor(value: number | undefined, minimum: number, maximum: number, layer: DistrictMapProps["layer"]): string {
   if (value === undefined || !Number.isFinite(value)) return "#cbd5e1";
-  const bounded = Math.max(0, Math.min(100, value));
-  return `hsl(${(bounded * 1.35).toFixed(1)} 68% 45%)`;
+  if (layer === "delta") {
+    const strength = maximum === 0 ? 0 : Math.min(1, Math.abs(value) / maximum);
+    return `hsl(${value < 0 ? 0 : 145} ${Math.round(strength * 70)}% ${Math.round(68 - strength * 33)}%)`;
+  }
+  const position = maximum === minimum ? 0.5 : Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
+  return `hsl(${(position * 135).toFixed(1)} 68% 45%)`;
 }
 
 export function DistrictMap({
   values,
+  layer = "before",
   selectedDistrictId,
   highlightedDistrictIds = [],
   disabledDistrictReasons = {},
@@ -62,7 +68,20 @@ export function DistrictMap({
 }: DistrictMapProps) {
   const [hoveredDistrictId, setHoveredDistrictId] = useState<DistrictId | null>(null);
   const hovered = shapes.find((district) => district.id === hoveredDistrictId);
+  const hoveredValue = hovered ? values?.[hovered.id] : undefined;
   const schematicDistricts = shapes.filter((district) => district.schematic);
+  const availableValues = Object.values(values ?? {}).filter((value): value is number =>
+    typeof value === "number" && Number.isFinite(value),
+  );
+  const maxAbsoluteDelta = availableValues.length > 0 ? Math.max(...availableValues.map(Math.abs)) : 0;
+  const minimum = layer === "delta"
+    ? -maxAbsoluteDelta
+    : availableValues.length > 0 ? Math.min(...availableValues) - 2 : 0;
+  const maximum = layer === "delta"
+    ? maxAbsoluteDelta
+    : availableValues.length > 0 ? Math.max(...availableValues) + 2 : 0;
+  const metricLabel = layer === "delta" ? "Изменение D" : layer === "after" ? "D после" : "D до";
+  const formatValue = (value: number) => `${layer === "delta" && value > 0 ? "+" : ""}${value.toFixed(2)}`;
 
   return (
     <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:p-5">
@@ -78,13 +97,13 @@ export function DistrictMap({
           const selected = selectedDistrictId === district.id;
           const highlighted = highlightedDistrictIds.includes(district.id);
           const focused = hoveredDistrictId === district.id;
-          const description = `${district.name}: ${value === undefined ? "нет данных" : `D ${value.toFixed(2)}`}${reason ? `. Недоступно: ${reason}` : ""}${district.schematic ? ". Граница схематичная" : ""}`;
+          const description = `${district.name}: ${value === undefined ? "нет данных" : `${metricLabel} ${formatValue(value)}`}${reason ? `. Недоступно: ${reason}` : ""}${district.schematic ? ". Граница схематичная" : ""}`;
 
           return (
             <g key={district.id}>
               <path
                 d={district.path}
-                fill={fillFor(value)}
+                fill={fillFor(value, minimum, maximum, layer)}
                 fillRule="evenodd"
                 stroke={reason ? "#be123c" : selected ? "#1d4ed8" : highlighted ? "#d97706" : "#ffffff"}
                 strokeWidth={focused ? 5 : selected || highlighted || reason ? 3 : 1.5}
@@ -127,17 +146,20 @@ export function DistrictMap({
         })}
       </svg>
       <div className="mt-3 flex items-center gap-3 text-xs text-slate-600">
-        <span>0</span>
+        <span>{formatValue(minimum)}</span>
         <div
           className="h-2.5 flex-1 rounded-full"
-          style={{ background: "linear-gradient(90deg, hsl(0 68% 45%), hsl(67.5 68% 45%), hsl(135 68% 45%))" }}
-          aria-label="Шкала значений от 0 до 100"
+          style={{ background: layer === "delta"
+            ? "linear-gradient(90deg, hsl(0 70% 35%), hsl(0 0% 68%), hsl(145 70% 35%))"
+            : "linear-gradient(90deg, hsl(0 68% 45%), hsl(67.5 68% 45%), hsl(135 68% 45%))" }}
+          aria-label={`Шкала ${metricLabel} от ${formatValue(minimum)} до ${formatValue(maximum)}`}
         />
-        <span>100</span>
+        {layer === "delta" && <span>0</span>}
+        <span>{formatValue(maximum)}</span>
       </div>
       <p className="mt-2 min-h-5 text-sm text-slate-700" aria-live="polite">
         {hovered
-          ? `${hovered.name}: ${values?.[hovered.id] === undefined ? "нет данных" : `D ${values[hovered.id]?.toFixed(2)}`}${disabledDistrictReasons[hovered.id] ? ` · ${disabledDistrictReasons[hovered.id]}` : ""}`
+          ? `${hovered.name}: ${hoveredValue === undefined ? "нет данных" : `${metricLabel} ${formatValue(hoveredValue)}`}${disabledDistrictReasons[hovered.id] ? ` · ${disabledDistrictReasons[hovered.id]}` : ""}`
           : "Наведите на район или выберите его с клавиатуры."}
       </p>
       {schematicDistricts.length > 0 && (
