@@ -121,3 +121,12 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+
+## Статусы — обязательно для агента
+- Перед началом любого тикета: python scripts/status.py — посмотри, что готово у других и нет ли блокеров.
+- Начал тикет: в docs/status/<своя зона>.md поставь in-progress и время Начато (HH:MM).
+- Закончил: done, время Готово, в Комментарий — 1 строка что сделано и что проверено.
+- Застрял > 15 мин или ждёшь другую зону: blocked + причина в Комментарии, сообщи человеку.
+- Правишь ТОЛЬКО свой файл статуса. PLAN.md не трогаешь (кроме зоны engine).
+- Обновление статуса коммитится вместе с кодом тикета, в одном коммите.
+- В конце каждого ответа человеку — вывод python scripts/status.py (только итоговые строки: вердикт, % done, до фриза).
