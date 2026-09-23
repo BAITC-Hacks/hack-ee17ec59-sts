@@ -21,8 +21,12 @@ export default function Home() {
         <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">Выберите пять городских инициатив, распределите бюджет и увидьте, как меняется качество жизни в районах Астаны.</p>
       </header>
       {errors.length > 0 && <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800"><p className="font-semibold">Сценарий нужно исправить:</p><ul className="mt-2 list-disc space-y-1 pl-5">{errors.map((error, index) => <li key={`${error.code}-${index}`}>{error.message}</li>)}</ul></section>}
-      <ScenarioBuilder onSimulate={setResult} onErrors={setErrors} />
-      {result && <ResultsDashboard result={result} />}
+      <ScenarioBuilder
+        onSimulate={setResult}
+        onErrors={setErrors}
+        onScenarioChange={() => setResult(null)}
+        aside={result ? <ResultsDashboard result={result} /> : null}
+      />
     </main>
   );
 }

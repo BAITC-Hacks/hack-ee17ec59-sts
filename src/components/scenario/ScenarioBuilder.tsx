@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import {
   CONFIG,
   DISTRICTS,
@@ -21,6 +22,7 @@ type ScenarioBuilderProps = {
   onSimulate: (result: SimulationResult) => void;
   onErrors: (errors: ValidationError[]) => void;
   onScenarioChange?: () => void;
+  aside?: ReactNode;
 };
 
 const SLOT_COUNT = CONFIG.n_decisions;
@@ -49,11 +51,28 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
   return { decisions };
 }
 
-export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: ScenarioBuilderProps) {
+export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange, aside }: ScenarioBuilderProps) {
   const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
   const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<SimulationResult | null>(null);
   const [mapLayer, setMapLayer] = useState<"after" | "delta">("after");
+  const rightColumnRef = useRef<HTMLDivElement>(null);
+  const asideRef = useRef<HTMLDivElement>(null);
+  const hasAside = Boolean(aside);
+
+  useEffect(() => {
+    const column = rightColumnRef.current;
+    if (!column) return;
+    if (!lastResult) {
+      column.scrollTop = 0;
+      return;
+    }
+    const target = asideRef.current;
+    if (!hasAside || !target || !window.matchMedia("(min-width: 1200px)").matches) return;
+    const columnTop = column.getBoundingClientRect().top;
+    const targetInside = target.getBoundingClientRect().top - columnTop + column.scrollTop;
+    column.scrollTop = Math.max(0, targetInside - (80 - columnTop));
+  }, [lastResult, hasAside]);
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
@@ -163,25 +182,51 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
         </button>
       </div>
 
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-        <div className="grid min-w-0 gap-3">
-          {slots.map((slot, index) => (
-            <DecisionSlot
-              key={index}
-              number={index + 1}
-              slot={slot}
-              active={activeSlotIndex === index}
-              errors={errorsForSlot(slot)}
-              selectedElsewhere={new Set(slots.flatMap((item, itemIndex) =>
-                itemIndex !== index && item.measureId ? [item.measureId] : [],
-              ))}
-              onActivate={() => setActiveSlotIndex(index)}
-              onChange={(next) => updateSlot(index, next)}
-              onClear={() => updateSlot(index, {})}
-            />
-          ))}
+      <div className="mt-6 grid min-w-0 items-start gap-6 min-[1200px]:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] print:block">
+        <div className="min-w-0">
+          <div className="grid min-w-0 gap-3">
+            {slots.map((slot, index) => (
+              <DecisionSlot
+                key={index}
+                number={index + 1}
+                slot={slot}
+                active={activeSlotIndex === index}
+                errors={errorsForSlot(slot)}
+                selectedElsewhere={new Set(slots.flatMap((item, itemIndex) =>
+                  itemIndex !== index && item.measureId ? [item.measureId] : [],
+                ))}
+                onActivate={() => setActiveSlotIndex(index)}
+                onChange={(next) => updateSlot(index, next)}
+                onClear={() => updateSlot(index, {})}
+              />
+            ))}
+          </div>
+
+          <div className="mt-6 border-t border-slate-200 pt-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+              <p className="shrink-0 text-sm text-slate-700">Выбрано <strong>{selectedCount} из {slots.length}</strong></p>
+              <BudgetMeter selectedMeasureIds={input.decisions.map((decision) => decision.measureId)} />
+            </div>
+            <ValidationSummary errors={visibleErrors} remainingCount={remainingCount} valid={validation.valid} />
+            <div className="mt-5 flex flex-col items-start gap-2 sm:items-end">
+              {!validation.valid && (
+                <p id="calculate-hint" className="text-sm text-slate-600">
+                  {buttonHint}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={calculate}
+                disabled={!validation.valid}
+                aria-describedby={!validation.valid ? "calculate-hint" : undefined}
+                className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+              >
+                Рассчитать сценарий
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="min-w-0 lg:sticky lg:top-4 print:static">
+        <div ref={rightColumnRef} className="min-w-0 min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:max-h-[calc(100vh-2rem)] min-[1200px]:overflow-y-auto min-[1200px]:pr-1 print:static print:mt-6 print:max-h-none print:overflow-visible print:pr-0">
           <h3 className="text-lg font-semibold text-slate-950">Районы Астаны</h3>
           {lastResult && (
             <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Слой карты">
@@ -220,30 +265,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: Scen
               ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
               : "Цвет показывает исходную оценку района D до выбора мер."}
           </p>
-        </div>
-      </div>
-
-      <div className="mt-6 border-t border-slate-200 pt-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-          <p className="shrink-0 text-sm text-slate-700">Выбрано <strong>{selectedCount} из {slots.length}</strong></p>
-          <BudgetMeter selectedMeasureIds={input.decisions.map((decision) => decision.measureId)} />
-        </div>
-        <ValidationSummary errors={visibleErrors} remainingCount={remainingCount} valid={validation.valid} />
-        <div className="mt-5 flex flex-col items-start gap-2 sm:items-end">
-          {!validation.valid && (
-            <p id="calculate-hint" className="text-sm text-slate-600">
-              {buttonHint}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={calculate}
-            disabled={!validation.valid}
-            aria-describedby={!validation.valid ? "calculate-hint" : undefined}
-            className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
-          >
-            Рассчитать сценарий
-          </button>
+          {aside && <div ref={asideRef} className="mt-6 min-w-0">{aside}</div>}
         </div>
       </div>
     </section>
