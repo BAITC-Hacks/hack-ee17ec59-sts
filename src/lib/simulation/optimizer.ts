@@ -1,5 +1,5 @@
 import { BUDGET_LIMIT, CONFIG, DISTRICTS, GLOBAL_INCOMPATIBILITIES, LOCAL_INCOMPATIBILITIES, MEASURES, SYNERGIES } from "./data";
-import { BASE, SIZE, WIDTH, addIndicatorEffects, addMeasureEffects, createScoreState, scoreIndicators } from "./numeric";
+import { BASE, SIZE, WIDTH, addIndicatorEffects, addMeasureEffects, createScoreState, effectShare, scoreIndicators } from "./numeric";
 import { simulateScenario } from "./simulate";
 import { validateScenario } from "./validate";
 import type { Decision, DistrictId, ScenarioInput, SimulationResult } from "./types";
@@ -13,6 +13,14 @@ export type ScenarioSwap = {
   budget: SimulationResult["budget"];
 };
 export type SwapAdvice = { swaps: ScenarioSwap[]; gapToOptimum: number | null; currentScore: number | null };
+export type OptimizationConstraints = {
+  budgetMax?: number;
+  mustInclude?: string[];
+  exclude?: string[];
+  mustIncludePlaced?: { id: string; district: DistrictId }[];
+  avoidDistricts?: DistrictId[];
+  minDistrictScore?: number;
+};
 let memo: OptimizedScenario[] | undefined;
 let ranked: OptimizedScenario[] | undefined;
 let elapsedMs = 0;
@@ -45,11 +53,11 @@ export function enumerateValid(): OptimizedScenario[] {
       const code = m * variantBase + d + 1;
       variants[code] = new Float64Array(SIZE);
       if (d < 0 && MEASURES[m].scope === "district") continue;
-      addMeasureEffects(variants[code], MEASURES[m], d, (CONFIG.horizon - MEASURES[m].lag) / CONFIG.horizon);
+      addMeasureEffects(variants[code], MEASURES[m], d, effectShare(MEASURES[m]));
       decisions[code] = Object.freeze(d < 0 ? { measureId: MEASURES[m].id } : { measureId: MEASURES[m].id, districtId: DISTRICTS[d].id });
     }
   }
-  const synergyRules = SYNERGIES.map(s => ({
+  const synergyRules = SYNERGIES.filter(s => s.measureIds.every(id => effectShare(MEASURES[indexOf(id)]) > 0)).map(s => ({
     mask: s.measureIds.reduce((mask, id) => mask | (1 << indexOf(id)), 0), target: indexOf(s.targetMeasureId), effects: s.effects,
   }));
   const bonuses = MEASURES.map(() => new Float64Array(WIDTH));
@@ -106,11 +114,38 @@ export function enumerateValid(): OptimizedScenario[] {
   return memo;
 }
 export function optimizerStats() { enumerateValid(); return { count: memo!.length, elapsedMs }; }
-export function findBest(topN = 10): OptimizedScenario[] {
+export function findBest(topN = 10, constraints: OptimizationConstraints = {}): OptimizedScenario[] {
   serverOnly();
-  if (!Number.isFinite(topN) || topN <= 0) return [];
+  if (!Number.isFinite(topN) || Math.floor(topN) <= 0) return [];
+  if ((constraints.budgetMax !== undefined && !Number.isFinite(constraints.budgetMax)) ||
+      (constraints.minDistrictScore !== undefined && !Number.isFinite(constraints.minDistrictScore))) return [];
   ranked ??= [...enumerateValid()].sort((a, b) => b.score - a.score || a.cost - b.cost);
-  return ranked.slice(0, Math.floor(topN));
+  const found: OptimizedScenario[] = [];
+  for (const entry of ranked) {
+    if (entry.cost > (constraints.budgetMax ?? BUDGET_LIMIT) || entry.dMin < (constraints.minDistrictScore ?? -Infinity)) continue;
+    const decisions = entry.scenario.decisions;
+    if (constraints.mustInclude?.some(id => !decisions.some(d => d.measureId === id))) continue;
+    if (constraints.exclude?.some(id => decisions.some(d => d.measureId === id))) continue;
+    if (constraints.mustIncludePlaced?.some(p => !decisions.some(d => d.measureId === p.id && d.districtId === p.district))) continue;
+    if (constraints.avoidDistricts?.some(id => decisions.some(d => d.districtId === id))) continue;
+    found.push(entry);
+    if (found.length >= Math.floor(topN)) break;
+  }
+  return found;
+}
+
+export type ParetoPoint = { budget: number; score: number; cost: number; scenario: ScenarioInput };
+export function pareto(step = 5): ParetoPoint[] {
+  serverOnly();
+  if (!Number.isSafeInteger(step) || step <= 0) throw new RangeError("step должен быть положительным целым числом");
+  const budgets: number[] = [];
+  for (let budget = 40; budget <= BUDGET_LIMIT; budget += step) budgets.push(budget);
+  if (budgets.at(-1) !== BUDGET_LIMIT) budgets.push(BUDGET_LIMIT);
+  // Infeasible budgets have no best valid scenario, so they are omitted.
+  return budgets.flatMap(budget => {
+    const best = findBest(1, { budgetMax: budget })[0];
+    return best ? [{ budget, score: best.score, cost: best.cost, scenario: best.scenario }] : [];
+  });
 }
 export function suggestSwaps(input: ScenarioInput, k = 3): SwapAdvice {
   serverOnly();

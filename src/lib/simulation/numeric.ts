@@ -1,5 +1,5 @@
-import { CONFIG, DISTRICTS } from "./data";
-import { INDICATOR_IDS, type IndicatorRecord, type Measure } from "./types";
+import { CONFIG, DISTRICTS, MEASURE_BY_ID, SYNERGIES } from "./data";
+import { INDICATOR_IDS, type IndicatorRecord, type Measure, type ScenarioInput, type SimulationResult } from "./types";
 
 export const WIDTH = INDICATOR_IDS.length;
 export const SIZE = DISTRICTS.length * WIDTH;
@@ -33,4 +33,33 @@ export function addMeasureEffects(target: Float64Array, measure: Measure, distri
   if (measure.scope === "city") {
     for (let d = 0; d < DISTRICTS.length; d++) addIndicatorEffects(target, measure.effects, d, share);
   } else addIndicatorEffects(target, measure.effects, district, share);
+}
+
+export type ShareFn = (measure: Measure) => number;
+export const effectShare = (measure: Measure, quarter = CONFIG.horizon) => Math.max(0, quarter - measure.lag) / CONFIG.horizon;
+
+// One effect pipeline for evaluate and timeline. Called only after validation.
+export function applyScenarioEffects(input: ScenarioInput, shareFn: ShareFn) {
+  const values = BASE.slice();
+  const contributions: SimulationResult["contributions"] = [];
+  const selected = new Map(input.decisions.map(d => [d.measureId, d]));
+  for (const decision of input.decisions) {
+    const measure = MEASURE_BY_ID.get(decision.measureId)!;
+    const share = shareFn(measure);
+    addMeasureEffects(values, measure, DISTRICTS.findIndex(d => d.id === decision.districtId), share);
+    contributions.push({
+      measureId: measure.id, districtId: decision.districtId,
+      realizedEffects: Object.fromEntries(Object.entries(measure.effects).map(([id, effect]) => [id, effect * share])),
+    });
+  }
+  const activatedSynergies: string[] = [];
+  for (const synergy of SYNERGIES) {
+    // share > 0 iff q > L, therefore both legs must be active.
+    if (!synergy.measureIds.every(id => selected.has(id) && shareFn(MEASURE_BY_ID.get(id)!) > 0)) continue;
+    const district = DISTRICTS.findIndex(d => d.id === selected.get(synergy.targetMeasureId)?.districtId);
+    if (district < 0) continue;
+    addIndicatorEffects(values, synergy.effects, district);
+    activatedSynergies.push(synergy.key);
+  }
+  return { values, contributions, activatedSynergies };
 }
