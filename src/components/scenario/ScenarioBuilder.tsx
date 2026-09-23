@@ -15,8 +15,10 @@ import type { ScenarioSlot } from "./DecisionSlot";
 import { remainingMeasuresHint, ValidationSummary } from "./ValidationSummary";
 
 type ScenarioBuilderProps = {
-  onSimulate: (result: SimulationResult) => void;
+  onSimulate: (result: SimulationResult, scenario: ScenarioInput) => void;
   onErrors: (errors: ValidationError[]) => void;
+  initialScenario?: ScenarioInput;
+  onChange?: () => void;
 };
 
 const SLOT_COUNT = CONFIG.n_decisions;
@@ -40,8 +42,10 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
   return { decisions };
 }
 
-export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) {
-  const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
+export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, onChange }: ScenarioBuilderProps) {
+  const [slots, setSlots] = useState<ScenarioSlot[]>(() => initialScenario
+    ? Array.from({ length: SLOT_COUNT }, (_, index) => ({ ...initialScenario.decisions[index] }))
+    : emptySlots());
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
@@ -63,6 +67,7 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
 
   function updateSlot(index: number, slot: ScenarioSlot) {
     setSlots((current) => current.map((item, itemIndex) => itemIndex === index ? slot : item));
+    onChange?.();
     onErrors([]);
   }
 
@@ -71,6 +76,7 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
       const decision = REFERENCE_SCENARIO.decisions[index];
       return decision ? { ...decision } : {};
     }));
+    onChange?.();
     onErrors([]);
   }
 
@@ -89,7 +95,7 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
     }
 
     onErrors([]);
-    onSimulate(result);
+    onSimulate(result, scenario);
   }
 
   return (

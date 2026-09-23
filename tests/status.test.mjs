@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { ROOT, renderBoard } from "../scripts/status.mjs";
 
 let root;
+let totalTickets;
 const temporaryParent = resolve(tmpdir());
 function update(zone, id, status, comment = "") {
   const path = join(root, `docs/status/${zone}.md`);
@@ -28,12 +29,15 @@ beforeEach(() => {
     writeFileSync(join(root, "docs", file), readFileSync(join(ROOT, "docs", file)));
   }
   // Deterministic board fixture, independent of teammates' future progress.
+  const allIds = new Set();
   for (const zone of ["engine", "ai", "ui"]) {
     const path = join(root, `docs/status/${zone}.md`);
     const ids = [...readFileSync(path, "utf8").matchAll(/^\| ([SEAUIFR]\d+[a-z]?) \|/gm)].map(m => m[1]);
     const completed = ["S0", "S0a", "S1", "S2", "E1", "E2", "A1", "A2", "U1", "U2", "U3"];
+    for (const id of ids) allIds.add(id);
     for (const id of ids) update(zone, id, completed.includes(id) ? "done" : id === "E6" ? "cut" : "todo");
   }
+  totalTickets = allIds.size;
   meta();
 });
 afterEach(() => {
@@ -46,7 +50,7 @@ it("reads commented META and calculates absolute times at 15:00", () => {
   const output = renderBoard(root, at(15, 0));
   expect(output).toContain("Время: 15:00 (системное, местное)");
   expect(output).toContain("Старт: 14:00 | Фриз: 17:20 | Конец: 18:00");
-  expect(output).toContain("(11/26 уникальных тикетов)");
+  expect(output).toContain(`(11/${totalTickets} уникальных тикетов)`);
   expect(output).toContain("До фриза: 140 мин");
   expect(output).toContain("До конца: 180 мин");
   expect(output).not.toContain("T+");
@@ -73,9 +77,9 @@ it("does not wrap times before start and clamps expired countdowns to zero", () 
 });
 it("requires all owners to finish a shared ticket", () => {
   update("engine", "I1", "done");
-  expect(renderBoard(root, at(15, 0))).toContain("(11/26");
+  expect(renderBoard(root, at(15, 0))).toContain(`(11/${totalTickets}`);
   update("ai", "I1", "done"); update("ui", "I1", "done");
-  expect(renderBoard(root, at(15, 0))).toContain("(12/26");
+  expect(renderBoard(root, at(15, 0))).toContain(`(12/${totalTickets}`);
 });
 it("respects the cut order and partial timeline cut", () => {
   const now = at(16, 30);
