@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ScenarioBuilder } from "@/components/scenario/ScenarioBuilder";
 import { ResultsDashboard } from "@/components/results/ResultsDashboard";
 import { AdviceCard } from "@/components/results/AdviceCard";
+import { AgentPanel } from "@/components/agent-panel/AgentPanel";
 import { compareAdvice, scenarioKey, type AdviceProposal } from "@/lib/simulation/advice";
 import { simulateScenario } from "@/lib/simulation/simulate";
 import type { ScenarioInput, SimulationResult, ValidationError } from "@/lib/simulation";
@@ -73,6 +74,7 @@ export default function Home() {
           {calculated && <>
             <AdviceCard key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} onApply={applyAdvice} />
             <ResultsDashboard result={calculated.result} />
+            <AgentPanel key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} />
           </>}
         </> : null}
       />
