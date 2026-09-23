@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
-  BUDGET_LIMIT,
   MEASURE_BY_ID,
   REFERENCE_SCENARIO,
   simulateScenario,
   validateScenario,
 } from "@/lib/simulation";
 import type { ScenarioInput, SimulationResult, ValidationError } from "@/lib/simulation";
+import { BudgetMeter } from "./BudgetMeter";
 import { DecisionSlot } from "./DecisionSlot";
 import type { ScenarioSlot } from "./DecisionSlot";
 
@@ -44,12 +44,6 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
-  const budgetUsed = slots.reduce(
-    (sum, slot) => sum + (slot.measureId ? MEASURE_BY_ID.get(slot.measureId)?.cost ?? 0 : 0),
-    0,
-  );
-  const budgetRemaining = BUDGET_LIMIT - budgetUsed;
-  const budgetPercent = Math.min(100, Math.max(0, (budgetUsed / BUDGET_LIMIT) * 100));
   const visibleErrors = validation.valid
     ? []
     : validation.errors.filter((error) => attempted || error.code !== "wrong-count");
@@ -123,14 +117,9 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
       </div>
 
       <div className="mt-6 border-t border-slate-200 pt-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-          <p className="text-slate-700">Решений: <strong>{selectedCount} / {slots.length}</strong></p>
-          <p className={budgetRemaining < 0 ? "font-semibold text-rose-700" : "font-semibold text-slate-900"}>
-            Потрачено {budgetUsed} из {BUDGET_LIMIT} · Остаток {budgetRemaining}
-          </p>
-        </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Использованный бюджет" aria-valuenow={budgetUsed} aria-valuemin={0} aria-valuemax={BUDGET_LIMIT}>
-          <div className={`h-full rounded-full ${budgetRemaining < 0 ? "bg-rose-500" : "bg-blue-600"}`} style={{ width: `${budgetPercent}%` }} />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
+          <p className="shrink-0 text-sm text-slate-700">Выбрано <strong>{selectedCount} из {slots.length}</strong></p>
+          <BudgetMeter selectedMeasureIds={input.decisions.map((decision) => decision.measureId)} />
         </div>
         {visibleErrors.length > 0 && (
           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800" role="alert">
