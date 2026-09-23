@@ -77,6 +77,7 @@ describe("mayor memo route", () => {
 
     expect(response.status).toBe(200);
     expect(body.source).toBe("openai");
+    expect(clientOptions).toHaveBeenCalledWith({ apiKey: "test-only", timeout: 8000, maxRetries: 0 });
     expect(body.executiveSummary).toBe(buildFallbackAnalysis(result).executiveSummary);
     expect(body.weakestDistrictInsight).toBe(buildFallbackAnalysis(result).weakestDistrictInsight);
     expect(body.strengths[1]).toBe("Байконур получил наибольшую поддержку по сравнению с другими районами.");
@@ -121,6 +122,19 @@ describe("mayor memo route", () => {
   it("rejects malformed requests before attempting analysis", async () => {
     const response = await POST(request({ result: { valid: false } }));
 
+    expect(response.status).toBe(400);
+    expect(createCompletion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { valid: true },
+    { ...resultFixture(), districts: null },
+    { ...resultFixture(), score: "52.56" },
+    { ...resultFixture(), contributions: [{ measureId: "M8", realizedEffects: { S2: "bad" } }] },
+    { ...resultFixture(), criticalIndicators: [{ districtId: "nura", indicatorId: "unknown", value: 35 }] },
+  ])("rejects incomplete or malformed valid-marked results without a server error", async result => {
+    vi.stubEnv("OPENAI_API_KEY", "test-only");
+    const response = await POST(request({ result }));
     expect(response.status).toBe(400);
     expect(createCompletion).not.toHaveBeenCalled();
   });

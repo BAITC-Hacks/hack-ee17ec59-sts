@@ -225,6 +225,8 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
     setMapLayer("after");
     onSimulate(result, scenario);
     const version = ++requestVersion.current;
+    setLoadingOptimization(null);
+    setOptimizationError(null);
     const key = JSON.stringify(scenario.decisions);
     const cachedRank = scenarioRankCache.get(key);
     setRank(cachedRank ?? null);

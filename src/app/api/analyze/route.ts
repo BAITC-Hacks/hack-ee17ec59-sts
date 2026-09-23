@@ -5,9 +5,36 @@ import {
   buildFallbackAnalysis,
   type AnalysisResponse,
 } from "@/lib/analysis";
-import type { SimulationResult } from "@/lib/simulation";
+import { DISTRICTS, INDICATOR_IDS, MEASURES, type SimulationResult } from "@/lib/simulation";
 
 export const runtime = "nodejs";
+
+const districtIdSchema = z.enum(DISTRICTS.map(district => district.id));
+const indicatorIdSchema = z.enum(INDICATOR_IDS);
+const indicatorsSchema = z.record(indicatorIdSchema, z.number());
+const indicatorChangesSchema = z.partialRecord(indicatorIdSchema, z.number());
+const simulationResultSchema: z.ZodType<SimulationResult> = z.object({
+  valid: z.literal(true),
+  budget: z.object({ limit: z.number(), used: z.number(), remaining: z.number() }).strict(),
+  baselineScore: z.number(), score: z.number(), scoreDelta: z.number(),
+  cityAverageBefore: z.number(), cityAverageAfter: z.number(),
+  weakestDistrictBefore: districtIdSchema, weakestDistrictAfter: districtIdSchema,
+  districts: z.array(z.object({
+    id: districtIdSchema, name: z.string().min(1).max(100),
+    scoreBefore: z.number(), scoreAfter: z.number(), scoreDelta: z.number(),
+    indicatorsBefore: indicatorsSchema, indicatorsAfter: indicatorsSchema,
+    indicatorDeltas: indicatorChangesSchema,
+  }).strict()).length(DISTRICTS.length).refine(districts => new Set(districts.map(district => district.id)).size === DISTRICTS.length),
+  criticalIndicators: z.array(z.object({
+    districtId: districtIdSchema, indicatorId: indicatorIdSchema, value: z.number(),
+  }).strict()).max(DISTRICTS.length * INDICATOR_IDS.length),
+  activatedSynergies: z.array(z.string().max(100)).max(MEASURES.length),
+  contributions: z.array(z.object({
+    measureId: z.enum(MEASURES.map(measure => measure.id)),
+    districtId: districtIdSchema.optional(), realizedEffects: indicatorChangesSchema,
+  }).strict()).max(MEASURES.length * DISTRICTS.length),
+}).strict();
+const requestSchema = z.object({ result: simulationResultSchema }).strict();
 
 const narrativeSchema = z.object({
   strengths: z.array(z.string().trim().min(1).max(240)).min(1).max(3),
@@ -89,15 +116,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid simulation result" }, { status: 400 });
   }
 
-  const result = (body as { result?: SimulationResult } | null)?.result;
-  if (!result?.valid) return Response.json({ error: "Invalid simulation result" }, { status: 400 });
+  const parsed = requestSchema.safeParse(body);
+  if (!parsed.success) return Response.json({ error: "Invalid simulation result" }, { status: 400 });
+  const { result } = parsed.data;
 
   const fallback = buildFallbackAnalysis(result);
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return Response.json(fallback);
 
   try {
-    const client = new OpenAI({ apiKey });
+    const client = new OpenAI({ apiKey, timeout: 8000, maxRetries: 0 });
     const completion = await client.chat.completions.create({
       model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       response_format: {

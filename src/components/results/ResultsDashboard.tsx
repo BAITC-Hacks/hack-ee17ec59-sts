@@ -1,4 +1,3 @@
-import { DISTRICTS } from "@/lib/simulation";
 import type { SimulationResult } from "@/lib/simulation";
 import { INDICATOR_LABELS } from "@/lib/simulation/labels";
 import { MayorBrief } from "./MayorBrief";
@@ -67,7 +66,7 @@ export function ResultsDashboard({ result }: { result: SimulationResult }) {
           {result.criticalIndicators.length > 0
             ? <ul className="mt-4 space-y-2 text-sm text-rose-700">{result.criticalIndicators.map((item) => (
               <li key={`${item.districtId}-${item.indicatorId}`} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-xl bg-rose-50 px-3 py-2">
-                <span>{DISTRICTS.find((district) => district.id === item.districtId)?.name ?? item.districtId} · {INDICATOR_LABELS[item.indicatorId]}</span>
+                <span>{result.districts.find((district) => district.id === item.districtId)?.name ?? item.districtId} · {INDICATOR_LABELS[item.indicatorId]}</span>
                 <strong>{item.value.toFixed(1)}</strong>
               </li>
             ))}</ul>

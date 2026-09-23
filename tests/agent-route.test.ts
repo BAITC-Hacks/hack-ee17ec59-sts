@@ -79,6 +79,18 @@ describe("agent route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("supplies initiative, district and indicator names before answering a named-initiative question", async () => {
+    vi.stubEnv("LLM_API_KEY", "test-key");
+    fetchMock.mockResolvedValueOnce(completion("Проверю Центр семейного здоровья в Нуре."));
+    await POST(request(payload("chat", "Подбери набор с Центром семейного здоровья в Нуре")));
+    const sent = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
+    const context = sent.messages.filter((message: { role: string }) => message.role === "system")
+      .map((message: { content: string }) => message.content).join("\n");
+    expect(context).toContain('"id":"M8","name":"Центр семейного здоровья"');
+    expect(context).toContain('"id":"nura","name":"Нура"');
+    expect(context).toContain('"id":"S1","name":"Школы и детсады"');
+  });
+
   it("reuses the existing explain fallback with three initial tools and a real positive swap", async () => {
     const fallback = vi.spyOn(analysis, "buildFallbackAnalysis");
     const response = await POST(request(payload("explain")));

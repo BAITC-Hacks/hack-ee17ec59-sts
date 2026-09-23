@@ -12,3 +12,5 @@
 A3 → engine, done (начато 16:35, готово 16:42), по решению PM; актуальная строка — docs/status/engine.md.
 
 Для U4: POST /api/agent, body {mode, message, scenario} → {answer, trace, mode}; демо-вопросы — src/lib/agent/demo-questions.json
+
+Финальные исправления по прямому запросу PM: done, Начато 17:40, Готово 17:41 — полная валидация входа записки, серверный таймаут 8 с, клиентский 12 с и каталог названий для агента. Совместные проверки с UI: 127 тестов, lint и production build прошли.
