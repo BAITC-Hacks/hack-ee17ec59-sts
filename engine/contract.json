@@ -1,0 +1,14 @@
+{
+ "evaluate": {
+  "valid": true, "errors": [],
+  "score": 56.54, "score_base": 52.56, "d_avg": 58.08, "d_min": 52.96, "min_district": "nura",
+  "n_crit": 0, "crit_list": [], "cost": 95, "budget_left": 5,
+  "districts": {"nura": {"D_before": 49.18, "D_after": 52.96,
+     "before": {"S1": 38, "S2": 35}, "after": {"S1": 48, "S2": 43.75}}},
+  "contributions": [{"measure": "M7", "district": "nura", "score_delta_marginal": 1.1,
+     "deltas": {"nura": {"S1": 10.0}}}],
+  "synergies_applied": [{"pair": ["M10", "M12"], "district": "nura", "effects": {"B1": 2}}]
+ },
+ "best": [{"scenario": [{"id": "M7", "district": "nura"}], "score": 57.9, "cost": 98}],
+ "swaps": [{"remove": {"id": "M5", "district": "saryarka"}, "add": {"id": "M9", "district": "nura"}, "score_delta": 0.4}]
+}
