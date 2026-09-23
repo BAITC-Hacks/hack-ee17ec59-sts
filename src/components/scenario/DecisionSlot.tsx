@@ -1,7 +1,8 @@
 import { DISTRICTS, MEASURE_BY_ID, MEASURES } from "@/lib/simulation";
-import type { Category, DistrictId } from "@/lib/simulation";
+import type { Category, DistrictId, ValidationError } from "@/lib/simulation";
 import { CATEGORY_LABELS } from "@/lib/simulation/labels";
 import { MeasureDetails } from "./MeasureDetails";
+import { slotValidationMessage } from "./ValidationSummary";
 
 export type ScenarioSlot = {
   measureId?: string;
@@ -11,6 +12,7 @@ export type ScenarioSlot = {
 type DecisionSlotProps = {
   number: number;
   slot: ScenarioSlot;
+  errors: readonly ValidationError[];
   selectedElsewhere: ReadonlySet<string>;
   onChange: (slot: ScenarioSlot) => void;
   onClear: () => void;
@@ -18,11 +20,11 @@ type DecisionSlotProps = {
 
 const categories = Object.keys(CATEGORY_LABELS) as Category[];
 
-export function DecisionSlot({ number, slot, selectedElsewhere, onChange, onClear }: DecisionSlotProps) {
+export function DecisionSlot({ number, slot, errors, selectedElsewhere, onChange, onClear }: DecisionSlotProps) {
   const measure = slot.measureId ? MEASURE_BY_ID.get(slot.measureId) : undefined;
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
+    <article className={`rounded-2xl border p-4 sm:p-5 ${errors.length > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
@@ -91,6 +93,13 @@ export function DecisionSlot({ number, slot, selectedElsewhere, onChange, onClea
       </div>
 
       {measure && <MeasureDetails measure={measure} />}
+      {errors.length > 0 && (
+        <ul className="mt-3 space-y-1 text-sm font-medium text-rose-700">
+          {errors.map((error, index) => (
+            <li key={`${error.code}-${index}`}>{slotValidationMessage(error)}</li>
+          ))}
+        </ul>
+      )}
     </article>
   );
 }

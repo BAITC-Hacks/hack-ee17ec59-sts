@@ -12,6 +12,7 @@ import type { ScenarioInput, SimulationResult, ValidationError } from "@/lib/sim
 import { BudgetMeter } from "./BudgetMeter";
 import { DecisionSlot } from "./DecisionSlot";
 import type { ScenarioSlot } from "./DecisionSlot";
+import { remainingMeasuresHint, ValidationSummary } from "./ValidationSummary";
 
 type ScenarioBuilderProps = {
   onSimulate: (result: SimulationResult) => void;
@@ -41,17 +42,27 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
 
 export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) {
   const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
-  const [attempted, setAttempted] = useState(false);
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
-  const visibleErrors = validation.valid
-    ? []
-    : validation.errors.filter((error) => attempted || error.code !== "wrong-count");
+  const remainingCount = slots.length - selectedCount;
+  const visibleErrors = validation.valid ? [] : validation.errors.filter((error) => error.code !== "wrong-count");
+  const buttonHint = remainingCount > 0
+    ? `${remainingMeasuresHint(remainingCount)}${visibleErrors.length > 0 ? " и исправьте отмеченные ошибки" : ""}, чтобы рассчитать сценарий.`
+    : "Исправьте отмеченные ошибки, чтобы рассчитать сценарий.";
+
+  function errorsForSlot(slot: ScenarioSlot): ValidationError[] {
+    return visibleErrors.filter((error) => {
+      if (error.measureIds?.length) {
+        return Boolean(slot.measureId && error.measureIds.includes(slot.measureId))
+          && (!error.districtId || slot.districtId === error.districtId);
+      }
+      return Boolean(error.districtId && slot.districtId === error.districtId);
+    });
+  }
 
   function updateSlot(index: number, slot: ScenarioSlot) {
     setSlots((current) => current.map((item, itemIndex) => itemIndex === index ? slot : item));
-    setAttempted(false);
     onErrors([]);
   }
 
@@ -60,12 +71,10 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
       const decision = REFERENCE_SCENARIO.decisions[index];
       return decision ? { ...decision } : {};
     }));
-    setAttempted(false);
     onErrors([]);
   }
 
   function calculate() {
-    setAttempted(true);
     const scenario = toScenarioInput(slots);
     const checked = validateScenario(scenario);
     if (!checked.valid) {
@@ -108,6 +117,7 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
             key={index}
             number={index + 1}
             slot={slot}
+            errors={errorsForSlot(slot)}
             selectedElsewhere={new Set(slots.flatMap((item, itemIndex) =>
               itemIndex !== index && item.measureId ? [item.measureId] : [],
             ))}
@@ -122,19 +132,19 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
           <p className="shrink-0 text-sm text-slate-700">Выбрано <strong>{selectedCount} из {slots.length}</strong></p>
           <BudgetMeter selectedMeasureIds={input.decisions.map((decision) => decision.measureId)} />
         </div>
-        {visibleErrors.length > 0 && (
-          <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800" role="alert">
-            <p className="font-semibold">Проверьте сценарий:</p>
-            <ul className="mt-1 list-disc space-y-1 pl-5">
-              {visibleErrors.map((error, index) => <li key={`${error.code}-${index}`}>{error.message}</li>)}
-            </ul>
-          </div>
-        )}
-        <div className="mt-5 flex justify-end">
+        <ValidationSummary errors={visibleErrors} remainingCount={remainingCount} valid={validation.valid} />
+        <div className="mt-5 flex flex-col items-start gap-2 sm:items-end">
+          {!validation.valid && (
+            <p id="calculate-hint" className="text-sm text-slate-600">
+              {buttonHint}
+            </p>
+          )}
           <button
             type="button"
             onClick={calculate}
-            className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800"
+            disabled={!validation.valid}
+            aria-describedby={!validation.valid ? "calculate-hint" : undefined}
+            className="rounded-full bg-blue-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
           >
             Рассчитать сценарий
           </button>
