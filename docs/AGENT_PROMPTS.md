@@ -1,3 +1,5 @@
+Актуальный план — docs/PLAN.md, статус — npm run status
+
 # Задания для coding agents
 
 ## Как использовать
