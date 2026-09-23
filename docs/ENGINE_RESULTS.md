@@ -68,3 +68,41 @@ API routes — зона ai; engine их не создаёт. Поиск/сове
 
 Передавая найденный сценарий в изменяемую форму UI, скопируйте его (`structuredClone`):
 результаты поиска заморожены, чтобы потребитель не повредил общий серверный кэш.
+
+## E3b: худший и перцентиль
+
+Худший: M8 Байконур, M9 Байконур, M10 Байконур, M11 Алматы,
+M13 Байконур. Cost 80, Score 52.04091625, D_min 49.18 (Нура), N_crit 3.
+Эталонный пример: rank 566 из 694395, percentile 99.9184901965%.
+
+`findWorst(topN=1, constraints?)` использует те же ограничения, что findBest;
+сортировка: Score ↑, cost ↑, затем ID мер и районы в каноническом порядке.
+`scoreRank(scenario)` делает бинарный поиск по мемоизированным скорам;
+возвращает {rank, total, percentile}, невалидный ввод — {error}.
+Перцентиль — процент строго худших наборов; равные не считаются худшими.
+Для равных Score ранг одинаков: 1 + число лучших, крайние группы закреплены
+за 1 (лучшие) и total (худшие). Допуск 1e-10 убирает шум сложения float,
+внутренний Score не округляется. При перестановке решений ранг не меняется.
+Экспорт: src/lib/simulation/index.ts; UI вызывает поиск через серверный API.
+
+## E3c: инструменты AI
+
+`import { engineTools, executeTool } from '@/lib/simulation/tools'`.
+engineTools — формат **Chat Completions** (`{type:'function', function:{name,description,parameters,strict:false}}`),
+совместимый с текущим SDK/route. Схемы генерируются из того же Zod, которым
+executeTool валидирует вызов. Формат сверён с [OpenAI Docs](https://developers.openai.com/api/docs/guides/function-calling).
+Для Responses API нужен адаптер: `engineTools.map(t => ({type:t.type, ...t.function}))`.
+
+Вызовы: evaluate_scenario, validate_scenario, find_best, find_worst,
+suggest_swaps, pareto, timeline, score_rank. Сценарий передаётся в поле scenario;
+поиск — {topN?, constraints?}, Парето — {step?}, замены — {scenario, k?}.
+executeTool принимает объект или JSON-строку из tool_call.function.arguments.
+Отправлять результат в tool message через JSON.stringify(result).
+
+find_best: по умолчанию 5 записей, максимум 10; find_worst: по умолчанию 1.
+Числа только в ответах инструментов округлены до 2 знаков; кэш не меняется.
+Timeline содержит только score[0…8] и byMeasure. Pareto — budget/score/cost;
+без многократного повторения составов. Для нужного бюджета вызовите find_best.
+Ошибочные аргументы/неизвестный инструмент возвращают {error} по-русски;
+validate_scenario при корректных аргументах возвращает доменные valid/errors.
+Реальный сетевой LLM-запрос не требуется для проверки этих локальных tools.
