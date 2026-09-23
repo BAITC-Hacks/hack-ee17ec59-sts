@@ -247,7 +247,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
 
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div className="flex flex-col gap-4 print:block">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">Решения</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">Соберите городской сценарий</h2>
@@ -255,7 +255,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
             Выберите ровно пять разных мер. Для районной меры укажите район.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <button
             type="button"
             onClick={() => loadScenario(REFERENCE_SCENARIO)}
@@ -307,7 +307,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
               <BudgetMeter selectedMeasureIds={input.decisions.map((decision) => decision.measureId)} />
             </div>
             <ValidationSummary errors={visibleErrors} remainingCount={remainingCount} valid={validation.valid} />
-            <div className="mt-5 flex flex-col items-start gap-2 sm:items-end">
+            <div className="mt-5 flex flex-col items-start gap-2 sm:items-end print:hidden">
               {!validation.valid && (
                 <p id="calculate-hint" className="text-sm text-slate-600">
                   {buttonHint}
@@ -326,7 +326,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
           </div>
         </div>
         <div ref={rightColumnRef} className="min-w-0 min-[1200px]:sticky min-[1200px]:top-4 min-[1200px]:max-h-[calc(100vh-2rem)] min-[1200px]:overflow-y-auto min-[1200px]:pr-1 print:static print:mt-6 print:max-h-none print:overflow-visible print:pr-0">
-          <h3 className="text-lg font-semibold text-slate-950">Районы Астаны</h3>
+          <h3 className="text-lg font-semibold text-slate-950 print:break-after-avoid">Районы Астаны</h3>
           {lastResult && (
             <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Слой карты">
               {(["after", "delta"] as const).map((layer) => (
@@ -364,7 +364,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
               ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
               : "Цвет показывает исходную оценку района D до выбора мер."}
           </p>
-          {lastResult && <div className="mt-6"><ParetoChart result={lastResult} /></div>}
+          {lastResult && <div className="mt-6 print:mt-4"><ParetoChart result={lastResult} /></div>}
           {(aside || lastResult) && <div ref={asideRef} className="mt-6 min-w-0">
             {lastResult && <p className="mb-3 text-sm font-medium text-slate-700" aria-live="polite">
               {rankLoading ? "Определяем место среди возможных сценариев…" : rank

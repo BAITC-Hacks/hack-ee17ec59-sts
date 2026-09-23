@@ -49,18 +49,18 @@ export function AgentPanel({ scenario }: { scenario: ScenarioInput }) {
   }
 
   return (
-    <section aria-label="AI-советник" aria-busy={loading} className="space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+    <section aria-label="AI-советник" aria-busy={loading} className={`space-y-5 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7 ${response ? "" : "print:hidden"}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-semibold text-slate-950">AI-советник</h2>
         {response && <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">{response.mode === "llm" ? "LLM" : "fallback"}</span>}
       </div>
-      <button type="button" disabled={loading} onClick={() => void ask("explain")} className={buttonClass}>Разобрать сценарий</button>
-      <form onSubmit={event => { event.preventDefault(); void ask("chat"); }} className="space-y-3">
+      <button type="button" disabled={loading} onClick={() => void ask("explain")} className={`${buttonClass} print:hidden`}>Разобрать сценарий</button>
+      <form onSubmit={event => { event.preventDefault(); void ask("chat"); }} className="space-y-3 print:hidden">
         <label htmlFor="agent-question" className="block text-sm font-semibold text-slate-800">Вопрос агенту</label>
         <textarea id="agent-question" value={question} onChange={event => setQuestion(event.target.value)} maxLength={8000} rows={3} disabled={loading} placeholder="Что можно улучшить в моём сценарии?" className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-blue-600 focus:outline-blue-600 disabled:opacity-50" />
         <button type="submit" disabled={loading || !question.trim()} className={buttonClass}>Спросить</button>
       </form>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 print:hidden">
         {demoQuestions.slice(0, 3).map(message => <button key={message} type="button" disabled={loading} onClick={() => { setQuestion(message); void ask("chat", message); }} className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2 text-left text-sm text-blue-900 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50">{message}</button>)}
       </div>
       {loading && <p role="status" className="text-sm text-slate-600">Агент готовит ответ…</p>}

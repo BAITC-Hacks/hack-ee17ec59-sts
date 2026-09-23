@@ -66,7 +66,7 @@ export default function Home() {
         onSimulate={(result, scenario) => { setCalculated({ result, scenario }); if (!undo) setNotice(""); }}
         onErrors={setErrors}
         onChange={invalidateResult}
-        aside={notice || calculated ? <>
+        aside={notice || calculated ? <div className="space-y-5">
           {notice && <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-900">
             <p>{notice}</p>
             {undo && <button type="button" onClick={undoAdvice} className="rounded-full border border-blue-300 bg-white px-4 py-2 font-semibold hover:bg-blue-100">Отменить совет</button>}
@@ -76,7 +76,7 @@ export default function Home() {
             <ResultsDashboard result={calculated.result} />
             <AgentPanel key={scenarioKey(calculated.scenario)} scenario={calculated.scenario} />
           </>}
-        </> : null}
+        </div> : null}
       />
     </main>
   );
