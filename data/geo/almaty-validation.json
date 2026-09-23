@@ -1,0 +1,22 @@
+{
+  "crs": "EPSG:32642 (WGS 84 / UTM zone 42N)",
+  "area_km2": {
+    "yesil": 194.54473651112318,
+    "almaty": 93.37912594810611,
+    "saryarka": 67.8127545306108,
+    "baikonur": 183.48773406522807,
+    "nura": 188.54527079926714
+  },
+  "pairwise_overlap_km2": {
+    "yesil/almaty": 0.0,
+    "yesil/saryarka": 0.0,
+    "yesil/baikonur": 0.0,
+    "yesil/nura": 0.0,
+    "almaty/saryarka": 0.0,
+    "almaty/baikonur": 0.0,
+    "almaty/nura": 0.0,
+    "saryarka/baikonur": 0.0,
+    "saryarka/nura": 0.0,
+    "baikonur/nura": 0.0
+  }
+}

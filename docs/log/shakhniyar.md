@@ -1,5 +1,14 @@
 # Лог: Шахнияр
 
+### 16:35 — A3 передан engine: агент explain/chat
+- **Ключевой промпт:** «Ты берёшь тикет A3 (агент)… за 25 минут… проверка только npm test, build один раз перед push».
+- **Пересечение зон:** PM явно поручил src/app/api/agent/, src/lib/agent/, перенос A3 и обновление статусов ai/UI (E5/U7 done, cut:timeline). Готовый buildFallbackAnalysis из ai переиспользуется без изменения.
+- **Начато:** инструменты и Next Route Handlers изучены; ветка codex/damir/simulation-engine обновлена fast-forward до текущего main, новые зависимости не нужны.
+- **Готово 16:42:** POST /api/agent, engineTools/executeTool, 6 раундов инструментов и финал без tools, trace, таймаут 30 с, общий explain fallback и find_best для chat fallback; три демо-вопроса и контракт U4.
+- **Проверено:** npm test — 110 passed; npm run build — один успешный запуск, /api/agent присутствует. Fetch замокан; live LLM и UI не проверялись по объёму задания. Первая проверка what-if исправлена: округлённые Score могут совпасть, различия бюджета 95→98 и районов подтверждены движком.
+- **Сохранность:** параллельные README/AGENTS и перенос U3/U8 не входят в A3; общие файлы коммитятся выборочно. Pre-push хук сохранён.
+- **Дальше:** U4/A4 подключают опубликованный маршрут; блокеров A3 нет.
+
 ### 15:59 — U6: Docker standalone и подготовка чистого прогона
 - **Сделано:** multi-stage node:20-alpine, standalone, non-root runtime, optional .env в Compose, .dockerignore; env bridge для LLM_* и прежнего analyze route. В README изменена только инструкция Docker, фронт/карта не тронуты.
 - **Ключевой промпт:** «U6 + R1 — Docker и чистый прогон… клонируй рядом… npm ci, npm test, npm run build».
