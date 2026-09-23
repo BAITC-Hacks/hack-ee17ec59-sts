@@ -4,7 +4,6 @@ import { useState } from "react";
 import { DISTRICTS } from "@/lib/simulation";
 import type { DistrictId } from "@/lib/simulation";
 import { DISTRICT_GEOMETRY } from "./districtGeometry";
-import { SCHEMATIC_ALMATY } from "./schematicAlmaty";
 
 type DistrictMapProps = {
   values?: Partial<Record<DistrictId, number>>;
@@ -17,10 +16,7 @@ type DistrictMapProps = {
 
 const WIDTH = 640;
 const PADDING = 8;
-const mapGeometry = DISTRICT_GEOMETRY.map((feature) =>
-  feature.id === "almaty" ? SCHEMATIC_ALMATY : feature,
-);
-const coordinates = mapGeometry.flatMap((feature) => feature.coordinates.flat(2));
+const coordinates = DISTRICT_GEOMETRY.flatMap((feature) => feature.coordinates.flat(2));
 const longitudes = coordinates.map(([longitude]) => longitude);
 const latitudes = coordinates.map(([, latitude]) => latitude);
 const west = Math.min(...longitudes);
@@ -41,7 +37,7 @@ function project([longitude, latitude]: readonly [number, number]): [number, num
 }
 
 const shapes = DISTRICTS.map((district) => {
-  const geometry = mapGeometry.find((feature) => feature.id === district.id);
+  const geometry = DISTRICT_GEOMETRY.find((feature) => feature.id === district.id);
   if (!geometry) throw new Error(`Нет геометрии для района ${district.id}`);
   const path = geometry.coordinates.map((polygon) => polygon.map((ring) =>
     ring.map((point, index) => {
@@ -49,7 +45,7 @@ const shapes = DISTRICTS.map((district) => {
       return `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`;
     }).join(" ") + " Z",
   ).join(" ")).join(" ");
-  return { ...district, path, centroid: project(geometry.centroid), schematic: geometry.schematic };
+  return { ...district, path, centroid: project(geometry.centroid) };
 });
 
 function fillFor(value: number | undefined, minimum: number, maximum: number, layer: DistrictMapProps["layer"]): string {
@@ -73,7 +69,6 @@ export function DistrictMap({
   const [hoveredDistrictId, setHoveredDistrictId] = useState<DistrictId | null>(null);
   const hovered = shapes.find((district) => district.id === hoveredDistrictId);
   const hoveredValue = hovered ? values?.[hovered.id] : undefined;
-  const schematicDistricts = shapes.filter((district) => district.schematic);
   const availableValues = Object.values(values ?? {}).filter((value): value is number =>
     typeof value === "number" && Number.isFinite(value),
   );
@@ -102,7 +97,7 @@ export function DistrictMap({
           const selected = selectedDistrictId === district.id;
           const highlighted = highlightedDistrictIds.includes(district.id);
           const focused = hoveredDistrictId === district.id;
-          const description = `${district.name}: ${value === undefined ? "нет данных" : `${metricLabel} ${formatValue(value)}`}${reason ? `. Недоступно: ${reason}` : ""}${district.schematic ? ". Граница схематичная" : ""}`;
+          const description = `${district.name}: ${value === undefined ? "нет данных" : `${metricLabel} ${formatValue(value)}`}${reason ? `. Недоступно: ${reason}` : ""}`;
 
           return (
             <g key={district.id}>
@@ -112,7 +107,6 @@ export function DistrictMap({
                 fillRule="evenodd"
                 stroke={reason ? "#be123c" : selected ? "#1d4ed8" : highlighted ? "#d97706" : "#ffffff"}
                 strokeWidth={focused ? 5 : selected || highlighted || reason ? 3 : 1.5}
-                strokeDasharray={district.schematic ? "6 4" : undefined}
                 className={`${reason ? "cursor-not-allowed" : onDistrictClick ? "cursor-pointer" : "cursor-default"} focus:outline-none`}
                 role={onDistrictClick ? "button" : "img"}
                 tabIndex={0}
@@ -167,11 +161,6 @@ export function DistrictMap({
           ? `${hovered.name}: ${hoveredValue === undefined ? "нет данных" : `${metricLabel} ${formatValue(hoveredValue)}`}${disabledDistrictReasons[hovered.id] ? ` · ${disabledDistrictReasons[hovered.id]}` : ""}`
           : "Наведите на район или выберите его с клавиатуры."}
       </p>
-      {schematicDistricts.length > 0 && (
-        <p className="mt-2 text-xs leading-5 text-amber-800">
-          Граница района {schematicDistricts.map((district) => district.name).join(", ")} показана схематично и не является административной границей.
-        </p>
-      )}
       <p className="mt-1 text-xs text-slate-500">
         Границы: <a className="underline" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors, ODbL 1.0</a>.
       </p>
