@@ -24,6 +24,7 @@ AI симулятор управления городом для HackAlem AI. П
 - [Архитектура](docs/ARCHITECTURE.md)
 - [План совместной работы](docs/DELIVERY_PLAN.md)
 - [Готовые задания для coding agents](docs/AGENT_PROMPTS.md)
+- [Брифинг для команды](docs/TEAM_BRIEFING.md)
 - [Сценарий демонстрации](docs/DEMO.md)
 - [Инструкции для coding agents](AGENTS.md)
 
