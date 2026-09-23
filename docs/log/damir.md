@@ -1,5 +1,10 @@
 # Лог: Дамир
 
+### 2026-09-23 16:22 — подготовка за время AFK
+- **Запрос:** «While I am afk prepare everything, 5 minutes».
+- **Сделано:** проверена готовность ключа без вывода значения (пусто), заново запущен dev-сервер3000, повторены lint/92 теста/build и браузер Apply/Undo; эталон восстановлен для пользователя. Добавлен `docs/DEMO_READY.md` с кратким демо и точными пунктами следующей интеграции карты.
+- **Команда:** fetched `origin/ui` до bc1aea0, read-only обзор карты; merge не выполнялся, изменения UI и AI не вносились. Новых A3/A4 в origin/ai-api нет. Live OpenAI ждёт ключа, Docker smoke требует доступной установки Docker.
+
 ### 2026-09-23 16:17 — локальный ключ и сценарий проверки E3a
 - **Ключевой промпт:** «Create local env so I can paste the key and test the feature. Also, create a test scenario».
 - **Сделано:** локальный `.env.local` с пустым OPENAI_API_KEY и ссылками LLM_* на тот же ключ/модель; файл исключён из Git. Добавлены `docs/AI_ADVICE_DEMO.md` и `docs/examples/advice-scenario.json`: эталон → совет → Apply → Undo → ручная правка.
