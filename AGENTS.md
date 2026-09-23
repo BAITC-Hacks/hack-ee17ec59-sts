@@ -17,9 +17,9 @@ LLM объясняет рассчитанный JSON; не считает Score.
 ## Зоны по реальным путям
 | Зона | Ответственность |
 |---|---|
-| engine | data/**, src/lib/simulation/**, tests/**, scripts/**, .githooks/**, AGENTS.md, docs/PLAN.md; E5 — будущий src/components/results/DistrictMap.tsx |
+| engine | data/**, src/lib/simulation/**, tests/**, scripts/**, .githooks/**, AGENTS.md, docs/PLAN.md, Dockerfile, docker-compose.yml, .dockerignore, next.config.ts; U6/R1; только инструкция Docker в README |
 | ai | src/lib/analysis.ts, src/app/api/analyze/**; будущие агент/инструменты рядом в src/lib и новые API routes |
-| ui | src/components/scenario/**, src/components/results/** кроме E5, src/app/page.tsx, src/app/layout.tsx, src/app/globals.css, README.md, Dockerfile, docker-compose.yml |
+| ui | src/components/scenario/**, src/components/results/** (включая карту E5/U7), src/app/page.tsx, src/app/layout.tsx, src/app/globals.css, README.md (кроме инструкции Docker); любые правки фронтенда |
 
 Общие package.json, lockfile, типы и конфигурация изменяются последовательно с согласованием владельцев. Не перемещать чужие модули без договорённости. Код создаётся через AI-агентов; значимые действия фиксируются в своём docs/log/<имя>.md. Чужие журналы не редактировать.
 
@@ -38,16 +38,16 @@ Damir объединяет ветки на контрольных точках. 
 - UI и AI не копируют расчёты. Мемоизация оптимизатора — на сервере; критерий E3 — полный холодный поиск <5 сек.
 - Внешние данные валидируются; исключения AI не ломают числовой расчёт и fallback.
 - Fixtures не считаются реализацией. Проверяются baseline, эталон, invalid cases и зависимость результата от сценария.
-- До обязательного MVP не добавлять auth, БД, мультиплеер и GPU. E6 только после обязательных задач; карта E5 разрешена планом PM.
+- До обязательного MVP не добавлять auth, БД, мультиплеер и GPU. E6 cut по решению PM; карта E5 разрешена планом PM.
 
 ## Статусы — обязательно для агента
 - Перед началом тикета: npm run status — посмотри, что готово у других и нет ли блокеров.
 - Начал: в docs/status/<своя зона>.md поставь in-progress и Начато HH:MM.
 - Закончил: done, Готово HH:MM; в комментарии что сделано и проверено.
 - Застрял >15 мин или ждёшь другую зону: blocked и причина, сообщи человеку.
-- Правишь только свой файл статуса; PLAN.md — зона engine. Первичная TS-миграция трёх досок разрешена PM.
-- Статус коммитится вместе с кодом тикета. Общие I1/F0/R1/R2 подтверждаются каждой зоной.
-- В конце ответа — итог npm run status: вердикт, процент done, до фриза. Если START не задан, прогноз условный.
+- Правишь только свой файл статуса; PLAN.md — зона engine. Первичная TS-миграция, пересчёт сроков и перенос владельцев E5/U7/U6/R1 разрешены PM.
+- Статус коммитится вместе с кодом тикета. Общие I1/F0/R2 подтверждаются каждой зоной; R1 принадлежит engine.
+- Дедлайны — абсолютное местное время HH:MM; START/END/FREEZE обязательны в META.md. В конце ответа — итог npm run status: вердикт, процент done, до фриза и до конца.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

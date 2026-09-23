@@ -11,10 +11,27 @@ const table = text => text.split(/\r?\n/).filter(line => line.startsWith("|")).m
 ).filter(row => /^[SEAUIFR]\d+[a-z]?$/.test(row[0]));
 
 export function minutes(value) {
-  if (!/^\d{1,2}:\d{2}$/.test(value)) throw new Error(`Некорректное время: ${value}`);
+  if (!/^\d{2}:\d{2}$/.test(value)) throw new Error(`Некорректное время HH:MM: ${value}`);
   const [h, m] = value.split(":").map(Number);
   if (h >= 24 || m >= 60) throw new Error(`Некорректное время: ${value}`);
   return h * 60 + m;
+}
+
+export function loadMeta(root = ROOT) {
+  const values = {};
+  for (const raw of read(join(root, "docs/status/META.md")).split(/\r?\n/)) {
+    const line = raw.split("#", 1)[0].trim();
+    const match = /^(START|END|FREEZE)\s*=\s*(.*)$/.exec(line);
+    if (match) values[match[1]] = match[2].trim();
+  }
+  for (const key of ["START", "END", "FREEZE"]) {
+    if (!values[key]) throw new Error(`META.md: заполните ${key}=HH:MM`);
+    minutes(values[key]);
+  }
+  if (!(minutes(values.START) < minutes(values.FREEZE) && minutes(values.FREEZE) <= minutes(values.END))) {
+    throw new Error("META.md: нужно START < FREEZE <= END в пределах одного дня");
+  }
+  return values;
 }
 
 export function loadBoard(root = ROOT) {
@@ -53,7 +70,7 @@ export function nextCut(plan, grouped) {
     const item = raw.replace(/^\d+\.\s*/, "").replace(/\.$/, "");
     const ids = item.match(/\b[EAUSIFR]\d+[a-z]?\b/g) ?? [];
     const rows = ids.flatMap(id => grouped.get(id) ?? []);
-    if (rows.length && rows.every(row => row.status === "cut")) continue;
+    if (rows.length && rows.every(row => ["done", "cut"].includes(row.status))) continue;
     const marker = item.includes("таймлайн") ? "cut:timeline" : item.includes("Парето") ? "cut:pareto" : null;
     if (marker && rows.length && rows.every(row => row.comment.toLowerCase().includes(marker))) continue;
     return item;
@@ -63,15 +80,10 @@ export function nextCut(plan, grouped) {
 
 export function renderBoard(root = ROOT, now = new Date()) {
   const { plan, zones } = loadBoard(root);
-  const meta = read(join(root, "docs/status/META.md"));
-  const start = /^START\s*=\s*([^#\r\n]+)/m.exec(meta)?.[1]?.trim() ?? "";
-  let elapsed = 0;
-  let warning = false;
-  try {
-    elapsed = (now.getHours() * 60 + now.getMinutes() - minutes(start) + 1440) % 1440;
-  } catch { warning = true; }
-  const lines = warning ? ["ПРЕДУПРЕЖДЕНИЕ: START не заполнен или неверен; T+0:00. Сроки пока не подтверждены."] : [];
-  lines.push(`Время: T+${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`);
+  const meta = loadMeta(root);
+  const current = now.getHours() * 60 + now.getMinutes();
+  const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const lines = [`Время: ${clock} (системное, местное)`, `Старт: ${meta.START} | Фриз: ${meta.FREEZE} | Конец: ${meta.END}`];
   const grouped = new Map();
   for (const zone of ZONES) {
     lines.push("", `[${zone}]`, "ID | Задача | Статус | Дедлайн");
@@ -79,22 +91,32 @@ export function renderBoard(root = ROOT, now = new Date()) {
     for (const row of zones[zone]) {
       if (!grouped.has(row.id)) grouped.set(row.id, []);
       grouped.get(row.id).push(row);
-      const overdue = elapsed > row.due && !["done", "cut"].includes(row.status);
-      lines.push(`${row.id} | ${row.task} | ${row.status}${overdue ? " ⚠" : ""} | T+${row.deadline}`);
+      const overdue = current > row.due && !["done", "cut"].includes(row.status);
+      lines.push(`${row.id} | ${row.task} | ${row.status}${overdue ? ` ⚠ +${current - row.due} мин` : ""} | ${row.deadline}`);
       if (row.status === "in-progress") active.push(`${row.id} (начато ${row.started || "не указано"})`);
     }
     lines.push(`В работе: ${active.join(", ") || "нет"}`);
   }
   const groups = [...grouped.values()];
   const done = groups.filter(rows => rows.every(row => row.status === "done")).length;
-  const worst = Math.max(0, ...groups.flat().filter(row => !["done", "cut"].includes(row.status)).map(row => elapsed - row.due));
+  const worst = Math.max(0, ...groups.flat().filter(row => !["done", "cut"].includes(row.status)).map(row => current - row.due));
   const verdict = worst > 15 ? "ОТСТАЁМ" : worst > 0 ? "РИСК" : "УСПЕВАЕМ";
-  const freeze = grouped.get("F0")?.[0]?.due;
-  if (freeze === undefined) throw new Error("Отсутствует тикет фриза F0");
+  const freeze = minutes(meta.FREEZE);
+  const end = minutes(meta.END);
+  if (!grouped.has("F0") || grouped.get("F0").some(row => row.due !== freeze)) {
+    throw new Error("Дедлайн F0 должен совпадать с FREEZE в META.md");
+  }
+  const e4 = grouped.get("E4")?.[0];
+  const u5 = grouped.get("U5")?.[0];
+  if (e4 && current >= e4.due && !["done", "cut"].includes(e4.status) && u5 &&
+      !["done", "cut"].includes(u5.status) && !u5.comment.toLowerCase().includes("cut:timeline")) {
+    lines.push("", `Правило урезания: E4 не готов к ${e4.deadline} — убрать таймлайн, оставить только Парето; отметить cut:timeline в U5.`);
+  }
   if (worst > 15) lines.push("", "Режем по списку: " + nextCut(plan, grouped));
-  lines.push("", `Вердикт: ${verdict}${warning ? " (условно: START не задан)" : ""}`,
+  lines.push("", `Вердикт: ${verdict}`,
     `Готово: ${(100 * done / grouped.size).toFixed(1)}% (${done}/${grouped.size} уникальных тикетов)`,
-    `До фриза: ${Math.max(0, freeze - elapsed)} минут${elapsed >= freeze ? ` (фриз наступил ${elapsed - freeze} минут назад)` : ""}`);
+    `До фриза: ${Math.max(0, freeze - current)} мин${current >= freeze ? ` (фриз наступил ${current - freeze} мин назад)` : ""}`,
+    `До конца: ${Math.max(0, end - current)} мин${current >= end ? ` (конец наступил ${current - end} мин назад)` : ""}`);
   return lines.join("\n");
 }
 
