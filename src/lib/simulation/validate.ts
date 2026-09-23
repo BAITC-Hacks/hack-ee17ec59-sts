@@ -1,5 +1,7 @@
 import {
   BUDGET_LIMIT,
+  CONFIG,
+  DISTRICTS,
   GLOBAL_INCOMPATIBILITIES,
   LOCAL_INCOMPATIBILITIES,
   MEASURE_BY_ID,
@@ -9,8 +11,8 @@ import type { ScenarioInput, ValidationError, ValidationResult } from "./types";
 export function validateScenario({ decisions }: ScenarioInput): ValidationResult {
   const errors: ValidationError[] = [];
 
-  if (decisions.length !== 5) {
-    errors.push({ code: "wrong-count", message: "Нужно выбрать ровно 5 разных мер." });
+  if (decisions.length !== CONFIG.n_decisions) {
+    errors.push({ code: "wrong-count", message: `Нужно выбрать ровно ${CONFIG.n_decisions} разных мер.` });
   }
 
   const measures = decisions.map((decision) => MEASURE_BY_ID.get(decision.measureId));
@@ -39,6 +41,9 @@ export function validateScenario({ decisions }: ScenarioInput): ValidationResult
     if (measure.scope === "district" && !decision.districtId) {
       errors.push({ code: "district-required", message: `${measure.id} требует выбора района.`, measureIds: [measure.id] });
     }
+    if (measure.scope === "district" && decision.districtId && !DISTRICTS.some(d => d.id === decision.districtId)) {
+      errors.push({ code: "district-invalid", message: `${measure.id}: неизвестный район.`, measureIds: [measure.id] });
+    }
     if (measure.scope === "city" && decision.districtId) {
       errors.push({ code: "district-not-allowed", message: `${measure.id} действует на весь город и не принимает район.`, measureIds: [measure.id] });
     }
@@ -47,8 +52,8 @@ export function validateScenario({ decisions }: ScenarioInput): ValidationResult
   const categoryCounts = new Map<string, number>();
   knownMeasures.forEach((measure) => categoryCounts.set(measure.category, (categoryCounts.get(measure.category) ?? 0) + 1));
   categoryCounts.forEach((count, category) => {
-    if (count > 2) {
-      errors.push({ code: "category-limit", message: `В направлении ${category} нельзя выбрать больше двух мер.` });
+    if (count > CONFIG.max_per_direction) {
+      errors.push({ code: "category-limit", message: `В направлении ${CONFIG.directions[category as keyof typeof CONFIG.directions]} нельзя выбрать больше ${CONFIG.max_per_direction} мер.` });
     }
   });
 

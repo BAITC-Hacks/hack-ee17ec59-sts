@@ -5,24 +5,22 @@ import { buildFallbackAnalysis, type AnalysisResponse } from "@/lib/analysis";
 import type { SimulationResult } from "@/lib/simulation";
 
 export function MayorBrief({ result }: { result: SimulationResult }) {
-  const [analysis, setAnalysis] = useState<AnalysisResponse>(() => buildFallbackAnalysis(result));
-  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState<{ result: SimulationResult; analysis: AnalysisResponse } | null>(null);
+  const loading = response?.result !== result;
+  const analysis = response?.result === result ? response.analysis : buildFallbackAnalysis(result);
 
   useEffect(() => {
     let cancelled = false;
-    setAnalysis(buildFallbackAnalysis(result));
-    setLoading(true);
     fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ result }),
     })
       .then(async (response) => (response.ok ? response.json() : null))
+      .catch(() => null)
       .then((nextAnalysis: AnalysisResponse | null) => {
-        if (!cancelled && nextAnalysis) setAnalysis(nextAnalysis);
-      })
-      .catch(() => undefined)
-      .finally(() => { if (!cancelled) setLoading(false); });
+        if (!cancelled) setResponse({ result, analysis: nextAnalysis ?? buildFallbackAnalysis(result) });
+      });
     return () => { cancelled = true; };
   }, [result]);
 
