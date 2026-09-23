@@ -40,4 +40,4 @@ rel(area.city)[boundary=administrative];out tags;
 Старая версия сохранена локально как `astana_districts.backup.geojson` и исключена из Git.
 Временные Python/Shapely/pyproj использовались только в `.venv`; зависимости приложения не менялись.
 
-Проверка: `npm test`. Существующий `tests/geo.test.mjs` требует `schematic=true` для Алматы; после замены это устаревшее ожидание должно быть изменено владельцем тестов. Каталог tests не входил в разрешённую область этой задачи.
+Проверка: `npm test`. Тест `tests/geo.test.mjs` проверяет замкнутые кольца пяти районов и источник OSM для Алматы (`schematic=false`, relation 3482819).
