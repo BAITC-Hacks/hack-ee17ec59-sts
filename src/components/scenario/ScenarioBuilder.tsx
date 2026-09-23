@@ -17,6 +17,7 @@ import { BudgetMeter } from "./BudgetMeter";
 import { DecisionSlot } from "./DecisionSlot";
 import type { ScenarioSlot } from "./DecisionSlot";
 import { remainingMeasuresHint, ValidationSummary } from "./ValidationSummary";
+import { loadOptimizedScenario, loadScenarioRank } from "./optimizerActions";
 
 type ScenarioBuilderProps = {
   onSimulate: (result: SimulationResult, scenario: ScenarioInput) => void;
@@ -29,6 +30,11 @@ type ScenarioBuilderProps = {
 };
 
 const SLOT_COUNT = CONFIG.n_decisions;
+type OptimizationKind = "best" | "worst";
+type RankResponse = Awaited<ReturnType<typeof loadScenarioRank>>["rank"];
+type RankDetails = Exclude<RankResponse, { error: string }>;
+const optimizedScenarioCache = new Map<OptimizationKind, ScenarioInput>();
+const scenarioRankCache = new Map<string, RankDetails>();
 
 const emptySlots = (): ScenarioSlot[] => Array.from({ length: SLOT_COUNT }, () => ({}));
 
@@ -70,6 +76,12 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
   });
   const [lastResult, setLastResult] = useState<SimulationResult | null>(initialResult ?? null);
   const [mapLayer, setMapLayer] = useState<"after" | "delta">("after");
+  const [loadingOptimization, setLoadingOptimization] = useState<OptimizationKind | null>(null);
+  const [optimizationError, setOptimizationError] = useState<string | null>(null);
+  const [rank, setRank] = useState<RankDetails | null>(null);
+  const [rankLoading, setRankLoading] = useState(false);
+  const [rankError, setRankError] = useState<string | null>(null);
+  const requestVersion = useRef(0);
   const rightColumnRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLDivElement>(null);
   const hasAside = Boolean(aside);
@@ -134,29 +146,63 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
   }
 
   function updateSlot(index: number, slot: ScenarioSlot) {
+    requestVersion.current += 1;
     setSlots((current) => current.map((item, itemIndex) => itemIndex === index ? slot : item));
     setActiveSlotIndex(index);
     setLastResult(null);
     setMapLayer("after");
+    setRank(null);
+    setRankLoading(false);
+    setRankError(null);
+    setLoadingOptimization(null);
+    setOptimizationError(null);
     onErrors([]);
     onChange?.();
     onScenarioChange?.();
   }
 
-  function loadReference() {
+  function loadScenario(scenario: ScenarioInput) {
+    requestVersion.current += 1;
     setSlots(Array.from({ length: SLOT_COUNT }, (_, index) => {
-      const decision = REFERENCE_SCENARIO.decisions[index];
+      const decision = scenario.decisions[index];
       return decision ? { ...decision } : {};
     }));
-    const firstDistrictIndex = REFERENCE_SCENARIO.decisions.findIndex((decision) =>
+    const firstDistrictIndex = scenario.decisions.findIndex((decision) =>
       MEASURE_BY_ID.get(decision.measureId)?.scope === "district",
     );
     setActiveSlotIndex(firstDistrictIndex >= 0 ? firstDistrictIndex : null);
     setLastResult(null);
     setMapLayer("after");
+    setRank(null);
+    setRankLoading(false);
+    setRankError(null);
+    setLoadingOptimization(null);
+    setOptimizationError(null);
     onErrors([]);
     onChange?.();
     onScenarioChange?.();
+  }
+
+  async function loadOptimized(kind: OptimizationKind) {
+    const cached = optimizedScenarioCache.get(kind);
+    if (cached) {
+      loadScenario(cached);
+      return;
+    }
+    const version = ++requestVersion.current;
+    setLoadingOptimization(kind);
+    setOptimizationError(null);
+    try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 50));
+      if (requestVersion.current !== version) return;
+      const { scenario } = await loadOptimizedScenario(kind);
+      optimizedScenarioCache.set(kind, scenario);
+      if (requestVersion.current === version) loadScenario(scenario);
+    } catch {
+      if (requestVersion.current === version) setOptimizationError("Не удалось загрузить сценарий. Попробуйте ещё раз.");
+    } finally {
+      if (requestVersion.current === version) setLoadingOptimization(null);
+    }
   }
 
   function calculate() {
@@ -177,6 +223,25 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
     setLastResult(result);
     setMapLayer("after");
     onSimulate(result, scenario);
+    const version = ++requestVersion.current;
+    const key = JSON.stringify(scenario.decisions);
+    const cachedRank = scenarioRankCache.get(key);
+    setRank(cachedRank ?? null);
+    setRankLoading(!cachedRank);
+    setRankError(null);
+    if (cachedRank) return;
+    void loadScenarioRank(scenario).then(({ rank: nextRank }) => {
+      if ("error" in nextRank) {
+        if (requestVersion.current === version) setRankError(nextRank.error);
+      } else {
+        scenarioRankCache.set(key, nextRank);
+        if (requestVersion.current === version) setRank(nextRank);
+      }
+    }).catch(() => {
+      if (requestVersion.current === version) setRankError("Не удалось определить место сценария.");
+    }).finally(() => {
+      if (requestVersion.current === version) setRankLoading(false);
+    });
   }
 
   return (
@@ -189,14 +254,31 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
             Выберите ровно пять разных мер. Для районной меры укажите район.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={loadReference}
-          className="rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
-        >
-          Загрузить эталонный сценарий
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => loadScenario(REFERENCE_SCENARIO)}
+            className="rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+          >
+            Загрузить эталонный сценарий
+          </button>
+          {(["best", "worst"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => void loadOptimized(kind)}
+              disabled={loadingOptimization !== null}
+              aria-busy={loadingOptimization === kind}
+              className="rounded-full border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50 disabled:cursor-wait disabled:opacity-60"
+            >
+              {loadingOptimization === kind
+                ? kind === "best" ? "Ищу лучший из ~694 тыс. наборов…" : "Ищу худший из ~694 тыс. наборов…"
+                : kind === "best" ? "Лучший сценарий" : "Худший сценарий"}
+            </button>
+          ))}
+        </div>
       </div>
+      {optimizationError && <p role="alert" className="mt-3 text-sm text-red-700">{optimizationError}</p>}
 
       <div className="mt-6 grid min-w-0 items-start gap-6 min-[1200px]:grid-cols-[minmax(0,1.08fr)_minmax(0,1fr)] print:block">
         <div className="min-w-0">
@@ -281,7 +363,14 @@ export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initial
               ? mapLayer === "delta" ? "Цвет показывает изменение D после выбранных мер." : "Цвет показывает оценку D после выбранных мер."
               : "Цвет показывает исходную оценку района D до выбора мер."}
           </p>
-          {aside && <div ref={asideRef} className="mt-6 min-w-0">{aside}</div>}
+          {(aside || lastResult) && <div ref={asideRef} className="mt-6 min-w-0">
+            {lastResult && <p className="mb-3 text-sm font-medium text-slate-700" aria-live="polite">
+              {rankLoading ? "Определяем место среди возможных сценариев…" : rank
+                ? `Лучше, чем ${new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(rank.percentile)}% из ${new Intl.NumberFormat("ru-RU").format(rank.total)} наборов · место ${new Intl.NumberFormat("ru-RU").format(rank.rank)}`
+                : rankError}
+            </p>}
+            {aside}
+          </div>}
         </div>
       </div>
     </section>
