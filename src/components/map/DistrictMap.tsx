@@ -83,7 +83,7 @@ export function DistrictMap({
   const formatValue = (value: number) => `${layer === "delta" && value > 0 ? "+" : ""}${value.toFixed(2)}`;
 
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 print:break-inside-avoid sm:p-3">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 print:mx-auto print:max-w-[430px] print:break-inside-avoid sm:p-3">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="xMidYMin meet"

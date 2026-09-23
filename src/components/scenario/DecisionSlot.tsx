@@ -29,7 +29,7 @@ export function DecisionSlot({ number, slot, active, errors, selectedElsewhere, 
     <article
       onFocusCapture={onActivate}
       onClick={onActivate}
-      className={`rounded-2xl border p-4 sm:p-5 ${errors.length > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"} ${active ? "ring-2 ring-blue-300" : ""}`}
+      className={`rounded-2xl border p-4 sm:p-5 print:break-inside-avoid print:p-4 ${errors.length > 0 ? "border-rose-300 bg-rose-50" : "border-slate-200 bg-slate-50"} ${active ? "ring-2 ring-blue-300" : ""}`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -42,7 +42,7 @@ export function DecisionSlot({ number, slot, active, errors, selectedElsewhere, 
           type="button"
           onClick={onClear}
           disabled={!slot.measureId && !slot.districtId}
-          className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40 print:hidden"
         >
           Очистить
         </button>

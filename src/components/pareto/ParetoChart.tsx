@@ -54,7 +54,7 @@ export function ParetoChart({ result }: { result: SimulationResult }) {
   const scoreFormat = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
-    <section aria-labelledby="pareto-heading" className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
+    <section aria-labelledby="pareto-heading" className="rounded-2xl border border-slate-200 bg-white p-4 print:break-inside-avoid sm:p-5">
       <h3 id="pareto-heading" className="text-lg font-semibold text-slate-950">Бюджет и лучший Score</h3>
       <p className="mt-1 text-sm text-slate-600">Линия показывает лучшие допустимые наборы при каждом бюджете.</p>
       <svg className="mt-4 h-auto w-full" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="График Парето: бюджет по горизонтали, лучший Score по вертикали, ваш набор выделен оранжевым">

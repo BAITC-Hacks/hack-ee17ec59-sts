@@ -79,7 +79,7 @@ export function AdviceCard({ scenario, onApply }: {
   }) ?? [];
 
   return (
-    <section aria-labelledby="advice-heading" className="rounded-3xl border border-blue-200 bg-blue-50/60 p-5 sm:p-7">
+    <section aria-labelledby="advice-heading" className={`rounded-3xl border border-blue-200 bg-blue-50/60 p-5 sm:p-7 ${state.kind === "ready" ? "" : "print:hidden"}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">AI-заместитель акима</p>
