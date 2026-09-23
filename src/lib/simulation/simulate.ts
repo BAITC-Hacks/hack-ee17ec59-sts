@@ -1,4 +1,4 @@
-import { DISTRICTS, INDICATOR_WEIGHTS, MEASURE_BY_ID, SIMULATION_HORIZON, SYNERGIES } from "./data";
+import { BUDGET_LIMIT, CONFIG, DISTRICTS, INDICATOR_WEIGHTS, MEASURE_BY_ID, SIMULATION_HORIZON, SYNERGIES } from "./data";
 import type {
   DistrictId,
   IndicatorId,
@@ -28,7 +28,8 @@ const targetsFor = (scope: "city" | "district", districtId?: DistrictId) =>
   scope === "city" ? DISTRICTS.map((district) => district.id) : districtId ? [districtId] : [];
 
 export function simulateScenario(input: ScenarioInput): SimulationResult | InvalidSimulationResult {
-  const validation = validateScenario(input);
+  // Empty input is a baseline calculation; UI validation still requires five decisions.
+  const validation = input.decisions.length === 0 ? { valid: true as const } : validateScenario(input);
   if (!validation.valid) return validation;
 
   const before = Object.fromEntries(DISTRICTS.map((district) => [district.id, cloneIndicators(district.indicators)])) as Record<DistrictId, IndicatorRecord>;
@@ -45,7 +46,7 @@ export function simulateScenario(input: ScenarioInput): SimulationResult | Inval
     for (const districtId of targetsFor(measure.scope, decision.districtId)) {
       for (const [indicatorId, effect] of Object.entries(realizedEffects)) {
         const key = indicatorId as IndicatorId;
-        after[districtId][key] = clip(after[districtId][key] + (effect ?? 0));
+        after[districtId][key] += effect ?? 0;
       }
     }
     contributions.push({ measureId: measure.id, districtId: measure.scope === "district" ? decision.districtId : undefined, realizedEffects });
@@ -56,26 +57,33 @@ export function simulateScenario(input: ScenarioInput): SimulationResult | Inval
     if (!synergy.measureIds.every((measureId) => selected.has(measureId))) continue;
     const target = input.decisions.find((decision) => decision.measureId === synergy.targetMeasureId);
     if (!target?.districtId) continue;
-    after[target.districtId][synergy.indicatorId] = clip(after[target.districtId][synergy.indicatorId] + synergy.bonus);
+    for (const [indicatorId, bonus] of Object.entries(synergy.effects)) {
+      after[target.districtId][indicatorId as IndicatorId] += bonus ?? 0;
+    }
     activatedSynergies.push(synergy.key);
   }
 
+  for (const district of DISTRICTS) {
+    for (const key of Object.keys(after[district.id]) as IndicatorId[]) {
+      after[district.id][key] = clip(after[district.id][key]);
+    }
+  }
   const beforeScores = Object.fromEntries(DISTRICTS.map((district) => [district.id, districtScore(before[district.id])])) as Record<DistrictId, number>;
   const afterScores = Object.fromEntries(DISTRICTS.map((district) => [district.id, districtScore(after[district.id])])) as Record<DistrictId, number>;
   const cityAverageBefore = weightedAverage(beforeScores);
   const cityAverageAfter = weightedAverage(afterScores);
   const criticalIndicators = DISTRICTS.flatMap((district) => Object.entries(after[district.id])
-    .filter(([, value]) => value < 40)
+    .filter(([, value]) => value < CONFIG.crit_threshold)
     .map(([indicatorId, value]) => ({ districtId: district.id, indicatorId: indicatorId as IndicatorId, value })));
-  const scoreBefore = 0.7 * cityAverageBefore + 0.3 * Math.min(...Object.values(beforeScores)) - DISTRICTS.flatMap((district) => Object.values(before[district.id])).filter((value) => value < 40).length;
-  const score = 0.7 * cityAverageAfter + 0.3 * Math.min(...Object.values(afterScores)) - criticalIndicators.length;
+  const scoreBefore = CONFIG.w_avg * cityAverageBefore + CONFIG.w_min * Math.min(...Object.values(beforeScores)) - CONFIG.crit_penalty * DISTRICTS.flatMap((district) => Object.values(before[district.id])).filter((value) => value < CONFIG.crit_threshold).length;
+  const score = CONFIG.w_avg * cityAverageAfter + CONFIG.w_min * Math.min(...Object.values(afterScores)) - CONFIG.crit_penalty * criticalIndicators.length;
 
   return {
     valid: true,
     budget: {
-      limit: 100,
+      limit: BUDGET_LIMIT,
       used: input.decisions.reduce((sum, decision) => sum + MEASURE_BY_ID.get(decision.measureId)!.cost, 0),
-      remaining: 100 - input.decisions.reduce((sum, decision) => sum + MEASURE_BY_ID.get(decision.measureId)!.cost, 0),
+      remaining: BUDGET_LIMIT - input.decisions.reduce((sum, decision) => sum + MEASURE_BY_ID.get(decision.measureId)!.cost, 0),
     },
     baselineScore: scoreBefore,
     score,

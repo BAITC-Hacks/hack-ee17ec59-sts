@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import {
+  CONFIG,
   MEASURE_BY_ID,
   REFERENCE_SCENARIO,
   simulateScenario,
@@ -18,7 +19,7 @@ type ScenarioBuilderProps = {
   onErrors: (errors: ValidationError[]) => void;
 };
 
-const SLOT_COUNT = 5;
+const SLOT_COUNT = CONFIG.n_decisions;
 
 const emptySlots = (): ScenarioSlot[] => Array.from({ length: SLOT_COUNT }, () => ({}));
 

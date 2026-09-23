@@ -58,6 +58,7 @@ export type ValidationErrorCode =
   | "duplicate-measure"
   | "budget"
   | "district-required"
+  | "district-invalid"
   | "district-not-allowed"
   | "category-limit"
   | "incompatible";
