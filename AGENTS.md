@@ -17,9 +17,9 @@ LLM объясняет рассчитанный JSON; не считает Score.
 ## Зоны по реальным путям
 | Зона | Ответственность |
 |---|---|
-| engine | data/**, src/lib/simulation/**, tests/**, scripts/**, .githooks/**, AGENTS.md, docs/PLAN.md, Dockerfile, docker-compose.yml, .dockerignore, next.config.ts; U6/R1; только инструкция Docker в README |
+| engine | data/**, src/lib/simulation/**, tests/**, scripts/**, .githooks/**, AGENTS.md, docs/PLAN.md, README.md целиком (U3/U8), Dockerfile, docker-compose.yml, .dockerignore, next.config.ts; U6/R1 |
 | ai | src/lib/analysis.ts, src/app/api/analyze/**; будущие агент/инструменты рядом в src/lib и новые API routes |
-| ui | src/components/scenario/**, src/components/results/** (включая карту E5/U7), src/app/page.tsx, src/app/layout.tsx, src/app/globals.css, README.md (кроме инструкции Docker); любые правки фронтенда |
+| ui | src/components/scenario/**, src/components/results/** (включая карту E5/U7), src/app/page.tsx, src/app/layout.tsx, src/app/globals.css, только скриншоты в docs/screenshots/ |
 
 Общие package.json, lockfile, типы и конфигурация изменяются последовательно с согласованием владельцев. Не перемещать чужие модули без договорённости. Код создаётся через AI-агентов; значимые действия фиксируются в своём docs/log/<имя>.md. Чужие журналы не редактировать.
 
