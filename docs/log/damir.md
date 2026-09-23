@@ -1,5 +1,11 @@
 # Лог: Дамир
 
+### 2026-09-23 16:17 — локальный ключ и сценарий проверки E3a
+- **Ключевой промпт:** «Create local env so I can paste the key and test the feature. Also, create a test scenario».
+- **Сделано:** локальный `.env.local` с пустым OPENAI_API_KEY и ссылками LLM_* на тот же ключ/модель; файл исключён из Git. Добавлены `docs/AI_ADVICE_DEMO.md` и `docs/examples/advice-scenario.json`: эталон → совет → Apply → Undo → ручная правка.
+- **Проверено:** `git check-ignore` подтверждает игнорирование env; env не отслеживается Git; JSON совпадает с существующим эталоном, инструкции используют уже проверенные 56.54→56.99 и 95→86. Автотесты повторно не запускались: runtime не менялся, ключ ещё вводит пользователь.
+- **Синхронизация:** получен `origin/main` до `3cdabb5` с Docker/standalone и отчётом репетиции чистого клона. Дальше — пользователь сохраняет ключ, перезапускает dev и проверяет бейдж AI-объяснение.
+
 ### 2026-09-23 — первый сквозной runtime
 - **Сделано:** собран Next.js UI для пяти решений, подключен детерминированный движок из `src/lib/simulation`, добавлены районные результаты, Score, синергии и fallback/OpenAI AI brief.
 - **Ключевой промпт:** «Make sure your work is really impactful and legit, if so merge and build what you can so i can assess first results».
