@@ -84,3 +84,25 @@ M13 Байконур. Cost 80, Score 52.04091625, D_min 49.18 (Нура), N_crit
 за 1 (лучшие) и total (худшие). Допуск 1e-10 убирает шум сложения float,
 внутренний Score не округляется. При перестановке решений ранг не меняется.
 Экспорт: src/lib/simulation/index.ts; UI вызывает поиск через серверный API.
+
+## E3c: инструменты AI
+
+`import { engineTools, executeTool } from '@/lib/simulation/tools'`.
+engineTools — формат **Chat Completions** (`{type:'function', function:{name,description,parameters,strict:false}}`),
+совместимый с текущим SDK/route. Схемы генерируются из того же Zod, которым
+executeTool валидирует вызов. Формат сверён с [OpenAI Docs](https://developers.openai.com/api/docs/guides/function-calling).
+Для Responses API нужен адаптер: `engineTools.map(t => ({type:t.type, ...t.function}))`.
+
+Вызовы: evaluate_scenario, validate_scenario, find_best, find_worst,
+suggest_swaps, pareto, timeline, score_rank. Сценарий передаётся в поле scenario;
+поиск — {topN?, constraints?}, Парето — {step?}, замены — {scenario, k?}.
+executeTool принимает объект или JSON-строку из tool_call.function.arguments.
+Отправлять результат в tool message через JSON.stringify(result).
+
+find_best: по умолчанию 5 записей, максимум 10; find_worst: по умолчанию 1.
+Числа только в ответах инструментов округлены до 2 знаков; кэш не меняется.
+Timeline содержит только score[0…8] и byMeasure. Pareto — budget/score/cost;
+без многократного повторения составов. Для нужного бюджета вызовите find_best.
+Ошибочные аргументы/неизвестный инструмент возвращают {error} по-русски;
+validate_scenario при корректных аргументах возвращает доменные valid/errors.
+Реальный сетевой LLM-запрос не требуется для проверки этих локальных tools.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { enumerateValid, findBest, findWorst, scoreRank, optimizerStats, suggestSwaps, pareto, timeline, evaluate, MEASURES, REFERENCE_SCENARIO, simulateScenario, simulateWithShare, validateScenario } from "../src/lib/simulation";
 import { effectShare } from "../src/lib/simulation/numeric";
+import { engineTools, executeTool } from "../src/lib/simulation/tools";
 
 describe("full server optimizer", () => {
   it("enumerates once, matches scoring across the search and returns a valid optimum", () => {
@@ -39,6 +40,51 @@ describe("full server optimizer", () => {
     expect(input).toEqual(REFERENCE_SCENARIO);
     expect(suggestSwaps({ decisions: [] })).toEqual({ swaps: [], gapToOptimum: null, currentScore: null });
     expect(suggestSwaps(findBest(1)[0].scenario).swaps).toEqual([]);
+  });
+});
+
+describe("agent tool dispatcher", () => {
+  it("publishes eight Chat Completions schemas with Russian descriptions", () => {
+    expect(engineTools).toHaveLength(8);
+    expect(new Set(engineTools.map(t => t.function.name)).size).toBe(8);
+    for (const tool of engineTools) {
+      expect(tool.type).toBe("function");
+      expect(tool.function.description).toMatch(/[А-Яа-я]/);
+      expect(tool.function.parameters).toMatchObject({ type: "object", additionalProperties: false });
+    }
+  });
+  it.each(["evaluate_scenario", "validate_scenario", "find_best", "find_worst", "suggest_swaps", "pareto", "timeline", "score_rank"])("executes %s through the public dispatcher", name => {
+    const args = ["find_best", "find_worst", "pareto"].includes(name) ? {} : { scenario: REFERENCE_SCENARIO };
+    const output = executeTool(name, JSON.stringify(args));
+    expect(output).not.toHaveProperty("error");
+    expect(JSON.stringify(output).length).toBeGreaterThan(2);
+  });
+  it("caps result sizes, rounds only the tool output and preserves the engine cache", () => {
+    const best = executeTool("find_best", {}) as { score: number }[];
+    expect(best).toHaveLength(5);
+    expect(best[0].score).toBe(57.24);
+    expect(findBest(1)[0].score).toBeCloseTo(57.236735, 8);
+    expect(executeTool("evaluate_scenario", { scenario: REFERENCE_SCENARIO })).toMatchObject({ score: 56.54, cost: 95 });
+    expect(Object.keys(executeTool("timeline", { scenario: REFERENCE_SCENARIO }) as object).sort()).toEqual(["byMeasure", "score"]);
+    expect(executeTool("validate_scenario", { scenario: { decisions: [] } })).toMatchObject({ valid: false });
+  });
+  it("passes constraints through find_best without changing district semantics", () => {
+    const result = executeTool("find_best", { constraints: { avoidDistricts: ["yesil"], budgetMax: 80, mustInclude: ["M3"] } }) as ReturnType<typeof findBest>;
+    expect(result).toHaveLength(5);
+    for (const row of result) {
+      expect(row.cost).toBeLessThanOrEqual(80);
+      expect(row.scenario.decisions.every(d => d.districtId !== "yesil")).toBe(true);
+      expect(row.scenario.decisions.some(d => d.measureId === "M3")).toBe(true);
+    }
+  });
+  it.each([
+    ["unknown", {}], ["__proto__", {}], ["evaluate_scenario", "{"], ["evaluate_scenario", {}],
+    ["find_best", { topN: 500 }], ["find_best", { constraints: { avoidDistricts: ["wrong"] } }],
+    ["find_best", { constraints: { budgetMax: "80" } }], ["pareto", { step: 0 }],
+    ["timeline", { scenario: { decisions: [{ measureId: "M3" }] } }], ["score_rank", null],
+  ])("returns a Russian error for invalid %s arguments", (name, args) => {
+    const result = executeTool(name as string, args) as { error: string };
+    expect(result.error).toMatch(/[А-Яа-я]/);
   });
 });
 
