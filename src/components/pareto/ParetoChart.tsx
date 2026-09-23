@@ -60,8 +60,8 @@ export function ParetoChart({ result }: { result: SimulationResult }) {
       <svg className="mt-4 h-auto w-full" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="График Парето: бюджет по горизонтали, лучший Score по вертикали, ваш набор выделен оранжевым">
         <line x1={LEFT} y1={TOP} x2={LEFT} y2={HEIGHT - BOTTOM} stroke="#94a3b8" />
         <line x1={LEFT} y1={HEIGHT - BOTTOM} x2={WIDTH - RIGHT} y2={HEIGHT - BOTTOM} stroke="#94a3b8" />
-        <text x={LEFT - 8} y={TOP + 4} textAnchor="end" className="fill-slate-600 text-xs">{scoreFormat.format(maxScore)}</text>
-        <text x={LEFT - 8} y={HEIGHT - BOTTOM + 4} textAnchor="end" className="fill-slate-600 text-xs">{scoreFormat.format(minScore)}</text>
+        <text x={LEFT - 8} y={y(maxScore) + 4} textAnchor="end" className="fill-slate-600 text-xs">{scoreFormat.format(maxScore)}</text>
+        <text x={LEFT - 8} y={y(minScore) + 4} textAnchor="end" className="fill-slate-600 text-xs">{scoreFormat.format(minScore)}</text>
         <text x={LEFT} y={HEIGHT - 17} textAnchor="middle" className="fill-slate-600 text-xs">{minBudget}</text>
         <text x={WIDTH - RIGHT} y={HEIGHT - 17} textAnchor="middle" className="fill-slate-600 text-xs">{maxBudget}</text>
         <polyline points={points.map((point) => `${x(point.budget)},${y(point.score)}`).join(" ")} fill="none" stroke="#2563eb" strokeWidth="3" strokeLinejoin="round" />

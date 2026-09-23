@@ -1,4 +1,5 @@
 import { MayorBrief } from "./MayorBrief";
+import { CONFIG } from "@/lib/simulation/data";
 import type { SimulationResult } from "@/lib/simulation";
 
 const deltaClass = (value: number) => value >= 0 ? "text-emerald-700" : "text-rose-700";
@@ -25,7 +26,7 @@ export function ResultsDashboard({ result }: { result: SimulationResult }) {
 
       <div className="grid gap-5 md:grid-cols-2">
         <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 className="text-lg font-semibold text-slate-950">Сработавшие синергии</h2>{result.activatedSynergies.length > 0 ? <div className="mt-4 flex flex-wrap gap-2">{result.activatedSynergies.map((synergy) => <span key={synergy} className="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700">{synergy}</span>)}</div> : <p className="mt-4 text-sm text-slate-500">В этом сценарии синергий нет.</p>}</div>
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 className="text-lg font-semibold text-slate-950">Критические показатели</h2>{result.criticalIndicators.length > 0 ? <ul className="mt-4 space-y-2 text-sm text-rose-700">{result.criticalIndicators.map((item) => <li key={`${item.districtId}-${item.indicatorId}`}>{item.districtId} · {item.indicatorId}: {item.value.toFixed(1)}</li>)}</ul> : <p className="mt-4 text-sm text-emerald-700">Критических значений ниже 40 не осталось.</p>}</div>
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7"><h2 className="text-lg font-semibold text-slate-950">Критические показатели</h2>{result.criticalIndicators.length > 0 ? <ul className="mt-4 space-y-2 text-sm text-rose-700">{result.criticalIndicators.map((item) => <li key={`${item.districtId}-${item.indicatorId}`}>{result.districts.find(district => district.id === item.districtId)?.name ?? item.districtId} · {CONFIG.indicator_names[item.indicatorId]}: {item.value.toFixed(1)}</li>)}</ul> : <p className="mt-4 text-sm text-emerald-700">Критических значений ниже 40 не осталось.</p>}</div>
       </div>
 
       <MayorBrief result={result} />

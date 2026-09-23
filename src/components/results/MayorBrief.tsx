@@ -11,17 +11,21 @@ export function MayorBrief({ result }: { result: SimulationResult }) {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12_000);
     fetch("/api/analyze", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ result }),
+      signal: controller.signal,
     })
       .then(async (response) => (response.ok ? response.json() : null))
       .catch(() => null)
       .then((nextAnalysis: AnalysisResponse | null) => {
+        clearTimeout(timeout);
         if (!cancelled) setResponse({ result, analysis: nextAnalysis ?? buildFallbackAnalysis(result) });
       });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; clearTimeout(timeout); controller.abort(); };
   }, [result]);
 
   return (
