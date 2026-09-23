@@ -35,9 +35,9 @@ export function MayorBrief({ result }: { result: SimulationResult }) {
       </div>
       <p className="mt-5 text-base leading-7 text-slate-800">{analysis.executiveSummary}</p>
       <div className="mt-6 grid gap-5 md:grid-cols-2">
-        <div><h3 className="text-sm font-semibold text-slate-950">Сильные стороны</h3><ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">{analysis.strengths.map((item) => <li key={item}>• {item}</li>)}</ul></div>
-        <div><h3 className="text-sm font-semibold text-slate-950">Компромиссы</h3><ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">{analysis.tradeoffs.map((item) => <li key={item}>• {item}</li>)}</ul></div>
-        <div><h3 className="text-sm font-semibold text-slate-950">Риски</h3><ul className="mt-2 space-y-2 text-sm leading-6 text-slate-700">{analysis.risks.map((item) => <li key={item}>• {item}</li>)}</ul></div>
+        <div><h3 className="text-sm font-semibold text-slate-950">Сильные стороны</h3><ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">{analysis.strengths.map((item) => <li key={item}>{item}</li>)}</ul></div>
+        <div><h3 className="text-sm font-semibold text-slate-950">Компромиссы</h3><ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">{analysis.tradeoffs.map((item) => <li key={item}>{item}</li>)}</ul></div>
+        <div><h3 className="text-sm font-semibold text-slate-950">Риски</h3><ul className="mt-2 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-700">{analysis.risks.map((item) => <li key={item}>{item}</li>)}</ul></div>
         <div><h3 className="text-sm font-semibold text-slate-950">Следующий шаг</h3><p className="mt-2 text-sm leading-6 text-slate-700">{analysis.recommendation}</p></div>
       </div>
       <p className="mt-6 border-t border-blue-100 pt-4 text-sm leading-6 text-slate-700"><span className="font-semibold">Слабейший район:</span> {analysis.weakestDistrictInsight}</p>
