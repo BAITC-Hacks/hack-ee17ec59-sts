@@ -1,5 +1,6 @@
 import { BUDGET_LIMIT, CONFIG, DISTRICTS, INDICATOR_WEIGHTS, MEASURE_BY_ID, SIMULATION_HORIZON, SYNERGIES } from "./data";
 import type {
+  BaselineSnapshot,
   DistrictId,
   IndicatorId,
   IndicatorRecord,
@@ -26,6 +27,43 @@ const weakestDistrict = (scores: Record<DistrictId, number>): DistrictId =>
 
 const targetsFor = (scope: "city" | "district", districtId?: DistrictId) =>
   scope === "city" ? DISTRICTS.map((district) => district.id) : districtId ? [districtId] : [];
+
+type ScoreSnapshot = BaselineSnapshot & {
+  scores: Record<DistrictId, number>;
+};
+
+const scoreSnapshot = (indicatorsByDistrict: Record<DistrictId, IndicatorRecord>): ScoreSnapshot => {
+  const scores = Object.fromEntries(
+    DISTRICTS.map((district) => [district.id, districtScore(indicatorsByDistrict[district.id])]),
+  ) as Record<DistrictId, number>;
+  const cityAverage = weightedAverage(scores);
+  const criticalIndicators = DISTRICTS.flatMap((district) => Object.entries(indicatorsByDistrict[district.id])
+    .filter(([, value]) => value < CONFIG.crit_threshold)
+    .map(([indicatorId, value]) => ({ districtId: district.id, indicatorId: indicatorId as IndicatorId, value })));
+  const score = CONFIG.w_avg * cityAverage + CONFIG.w_min * Math.min(...Object.values(scores)) - CONFIG.crit_penalty * criticalIndicators.length;
+
+  return {
+    score,
+    cityAverage,
+    weakestDistrict: weakestDistrict(scores),
+    criticalIndicators,
+    scores,
+  };
+};
+
+const baselineIndicators = () => Object.fromEntries(
+  DISTRICTS.map((district) => [district.id, cloneIndicators(district.indicators)]),
+) as Record<DistrictId, IndicatorRecord>;
+
+export function getBaselineSnapshot(): BaselineSnapshot {
+  const snapshot = scoreSnapshot(baselineIndicators());
+  return {
+    score: snapshot.score,
+    cityAverage: snapshot.cityAverage,
+    weakestDistrict: snapshot.weakestDistrict,
+    criticalIndicators: snapshot.criticalIndicators,
+  };
+}
 
 export function simulateScenario(input: ScenarioInput): SimulationResult | InvalidSimulationResult {
   // Empty input is a baseline calculation; UI validation still requires five decisions.
@@ -68,15 +106,8 @@ export function simulateScenario(input: ScenarioInput): SimulationResult | Inval
       after[district.id][key] = clip(after[district.id][key]);
     }
   }
-  const beforeScores = Object.fromEntries(DISTRICTS.map((district) => [district.id, districtScore(before[district.id])])) as Record<DistrictId, number>;
-  const afterScores = Object.fromEntries(DISTRICTS.map((district) => [district.id, districtScore(after[district.id])])) as Record<DistrictId, number>;
-  const cityAverageBefore = weightedAverage(beforeScores);
-  const cityAverageAfter = weightedAverage(afterScores);
-  const criticalIndicators = DISTRICTS.flatMap((district) => Object.entries(after[district.id])
-    .filter(([, value]) => value < CONFIG.crit_threshold)
-    .map(([indicatorId, value]) => ({ districtId: district.id, indicatorId: indicatorId as IndicatorId, value })));
-  const scoreBefore = CONFIG.w_avg * cityAverageBefore + CONFIG.w_min * Math.min(...Object.values(beforeScores)) - CONFIG.crit_penalty * DISTRICTS.flatMap((district) => Object.values(before[district.id])).filter((value) => value < CONFIG.crit_threshold).length;
-  const score = CONFIG.w_avg * cityAverageAfter + CONFIG.w_min * Math.min(...Object.values(afterScores)) - CONFIG.crit_penalty * criticalIndicators.length;
+  const beforeSnapshot = scoreSnapshot(before);
+  const afterSnapshot = scoreSnapshot(after);
 
   return {
     valid: true,
@@ -85,24 +116,24 @@ export function simulateScenario(input: ScenarioInput): SimulationResult | Inval
       used: input.decisions.reduce((sum, decision) => sum + MEASURE_BY_ID.get(decision.measureId)!.cost, 0),
       remaining: BUDGET_LIMIT - input.decisions.reduce((sum, decision) => sum + MEASURE_BY_ID.get(decision.measureId)!.cost, 0),
     },
-    baselineScore: scoreBefore,
-    score,
-    scoreDelta: score - scoreBefore,
-    cityAverageBefore,
-    cityAverageAfter,
-    weakestDistrictBefore: weakestDistrict(beforeScores),
-    weakestDistrictAfter: weakestDistrict(afterScores),
+    baselineScore: beforeSnapshot.score,
+    score: afterSnapshot.score,
+    scoreDelta: afterSnapshot.score - beforeSnapshot.score,
+    cityAverageBefore: beforeSnapshot.cityAverage,
+    cityAverageAfter: afterSnapshot.cityAverage,
+    weakestDistrictBefore: beforeSnapshot.weakestDistrict,
+    weakestDistrictAfter: afterSnapshot.weakestDistrict,
     districts: DISTRICTS.map((district) => ({
       id: district.id,
       name: district.name,
-      scoreBefore: beforeScores[district.id],
-      scoreAfter: afterScores[district.id],
-      scoreDelta: afterScores[district.id] - beforeScores[district.id],
+      scoreBefore: beforeSnapshot.scores[district.id],
+      scoreAfter: afterSnapshot.scores[district.id],
+      scoreDelta: afterSnapshot.scores[district.id] - beforeSnapshot.scores[district.id],
       indicatorsBefore: before[district.id],
       indicatorsAfter: after[district.id],
       indicatorDeltas: Object.fromEntries(Object.keys(after[district.id]).map((indicatorId) => [indicatorId, after[district.id][indicatorId as IndicatorId] - before[district.id][indicatorId as IndicatorId]])),
     })),
-    criticalIndicators,
+    criticalIndicators: afterSnapshot.criticalIndicators,
     activatedSynergies,
     contributions,
   };

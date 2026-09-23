@@ -115,3 +115,14 @@ export type SimulationResult = {
   activatedSynergies: string[];
   contributions: MeasureContribution[];
 };
+
+export type BaselineSnapshot = {
+  score: number;
+  cityAverage: number;
+  weakestDistrict: DistrictId;
+  criticalIndicators: Array<{
+    districtId: DistrictId;
+    indicatorId: IndicatorId;
+    value: number;
+  }>;
+};

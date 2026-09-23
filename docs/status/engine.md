@@ -6,7 +6,7 @@
 | S0a | Единый репозиторий команды без вложенных репо | 0:20 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
 | S1 | Единый TS-контракт: ScenarioInput, SimulationResult, validateScenario, simulateScenario | 0:30 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
 | S2 | TS-only: JSON-импорты, Vitest, lint, pre-push, план и Node-доска | 0:30 | done | 15:09 | 15:16 | lint/build зелёные; Vitest 27 passed; Node-доска и pre-push установлены. |
-| E1 | scoring: лаг, синергии, clip, D, D_avg, Score, N_crit, вклад мер | 1:10 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
+| E1 | scoring: лаг, синергии, clip, D, D_avg, Score, N_crit, вклад мер | 1:10 | done | — | 15:19 | Формулы и JSON-каталог проверены; добавлен публичный getBaselineSnapshot() и общий расчет baseline/Score. |
 | E2 | Валидатор: 5 мер, бюджет, уникальность, направления, размещение, конфликты | 1:30 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
 | E3 | Оптимизатор: полный перебор, серверная мемоизация + suggestSwaps | 2:10 | todo | — | — | suggestSwaps получен из main; полный поиск/мемоизация/замер ещё не готовы. |
 | E4 | findBest(constraints), pareto(step), timeline(scenario) | 2:40 | todo | — | — |  |
