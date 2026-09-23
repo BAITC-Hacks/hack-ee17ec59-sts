@@ -1,5 +1,5 @@
 export * from "./data";
-export * from "./optimize";
+export * from "./optimizer";
 export * from "./simulate";
 export * from "./scenarios";
 export * from "./types";

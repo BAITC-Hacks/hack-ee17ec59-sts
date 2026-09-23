@@ -31,3 +31,5 @@
 Передача PM: `docs/PM_HANDOFF.md`; подробный план: `docs/PLAN.md`.
 
 Коллеги добавили suggestSwaps в src/lib/simulation/optimize.ts (перебор одной замены). Это частичная реализация E3; полный поиск с серверной мемоизацией и замером <5 сек ещё предстоит. Новый UI использует DecisionSlot/MeasureDetails и русские подписи.
+
+E3 done: enumerateValid/findBest/suggestSwaps экспортированы из src/lib/simulation/index.ts для серверных tools. Полный поиск: 694395 сценариев за 2.29 с, top Score 57.236735, cost 98. Проверки: 36 тестов, lint/build. E4 ещё в работе следующего этапа.

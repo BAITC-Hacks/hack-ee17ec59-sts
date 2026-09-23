@@ -8,7 +8,7 @@
 | S2 | TS-only: JSON-импорты, Vitest, lint, pre-push, план и Node-доска | 14:30 | done | 15:09 | 15:16 | lint/build зелёные; Vitest 27 passed; Node-доска и pre-push установлены. |
 | E1 | scoring: лаг, синергии, clip, D, D_avg, Score, N_crit, вклад мер | 15:10 | done | — | 15:19 | Формулы и JSON-каталог проверены; добавлен публичный getBaselineSnapshot() и общий расчет baseline/Score. |
 | E2 | Валидатор: 5 мер, бюджет, уникальность, направления, размещение, конфликты | 15:30 | done | — | 15:09 | Готовый MVP; перенесено в TS-план по решению PM. |
-| E3 | Оптимизатор: полный перебор, серверная мемоизация + suggestSwaps | 15:50 | todo | — | — | suggestSwaps получен из main; полный поиск/мемоизация/замер ещё не готовы. |
+| E3 | Оптимизатор: полный перебор, серверная мемоизация + suggestSwaps | 15:50 | done | 15:29 | 15:33 | 694395 сценариев, холодный перебор 2.29 с; top Score 57.236735; 36 тестов, lint/build зелёные. Функции готовы, экспорт: src/lib/simulation/index.ts — enumerateValid, findBest, suggestSwaps (сервер). |
 | E4 | findBest(constraints), pareto(step), timeline(scenario) | 16:20 | todo | — | — |  Если E4 не готов к 16:20 — только Парето; для таймлайна в U5 отметить cut:timeline. |
 | E5 | Карта react-leaflet + OSM: GeoJSON, слои, маркеры, слабейший район, ухудшения | 16:50 | todo | — | — | GeoJSON сохранён; React-карта ещё не реализована. |
 | I1 | ИНТЕГРАЦИЯ расширенного демо на одной машине, окно 16:50–17:00 | 17:00 | todo | — | — |  |
