@@ -3,12 +3,15 @@
 import { useMemo, useState } from "react";
 import {
   CONFIG,
+  DISTRICTS,
   MEASURE_BY_ID,
   REFERENCE_SCENARIO,
+  baselineScenario,
   simulateScenario,
   validateScenario,
 } from "@/lib/simulation";
-import type { ScenarioInput, SimulationResult, ValidationError } from "@/lib/simulation";
+import type { DistrictId, ScenarioInput, SimulationResult, ValidationError } from "@/lib/simulation";
+import { DistrictMap } from "@/components/map/DistrictMap";
 import { BudgetMeter } from "./BudgetMeter";
 import { DecisionSlot } from "./DecisionSlot";
 import type { ScenarioSlot } from "./DecisionSlot";
@@ -17,11 +20,17 @@ import { remainingMeasuresHint, ValidationSummary } from "./ValidationSummary";
 type ScenarioBuilderProps = {
   onSimulate: (result: SimulationResult) => void;
   onErrors: (errors: ValidationError[]) => void;
+  onScenarioChange?: () => void;
 };
 
 const SLOT_COUNT = CONFIG.n_decisions;
 
 const emptySlots = (): ScenarioSlot[] => Array.from({ length: SLOT_COUNT }, () => ({}));
+
+const baselineResult = simulateScenario(baselineScenario());
+const BASELINE_DISTRICT_VALUES: Partial<Record<DistrictId, number>> = baselineResult.valid
+  ? Object.fromEntries(baselineResult.districts.map((district) => [district.id, district.scoreBefore]))
+  : {};
 
 export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
   const decisions: ScenarioInput["decisions"] = [];
@@ -40,8 +49,9 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
   return { decisions };
 }
 
-export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) {
+export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange }: ScenarioBuilderProps) {
   const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
   const input = useMemo(() => toScenarioInput(slots), [slots]);
   const validation = useMemo(() => validateScenario(input), [input]);
   const selectedCount = input.decisions.length;
@@ -50,6 +60,27 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
   const buttonHint = remainingCount > 0
     ? `${remainingMeasuresHint(remainingCount)}${visibleErrors.length > 0 ? " и исправьте отмеченные ошибки" : ""}, чтобы рассчитать сценарий.`
     : "Исправьте отмеченные ошибки, чтобы рассчитать сценарий.";
+  const activeSlot = activeSlotIndex === null ? undefined : slots[activeSlotIndex];
+  const activeMeasure = activeSlot?.measureId ? MEASURE_BY_ID.get(activeSlot.measureId) : undefined;
+  const activeDistrictMeasure = activeMeasure?.scope === "district" ? activeMeasure : undefined;
+  const disabledDistrictReasons = useMemo(() => {
+    if (activeSlotIndex === null || !activeDistrictMeasure) return {};
+    const reasons: Partial<Record<DistrictId, string>> = {};
+    for (const district of DISTRICTS) {
+      const candidateSlots = slots.map((slot, index) => index === activeSlotIndex
+        ? { ...slot, districtId: district.id }
+        : slot);
+      const candidate = validateScenario(toScenarioInput(candidateSlots));
+      if (candidate.valid) continue;
+      const conflict = candidate.errors.find((error) =>
+        error.code === "incompatible"
+        && error.measureIds?.includes(activeDistrictMeasure.id)
+        && (!error.districtId || error.districtId === district.id),
+      );
+      if (conflict) reasons[district.id] = conflict.message;
+    }
+    return reasons;
+  }, [activeDistrictMeasure, activeSlotIndex, slots]);
 
   function errorsForSlot(slot: ScenarioSlot): ValidationError[] {
     return visibleErrors.filter((error) => {
@@ -63,7 +94,9 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
 
   function updateSlot(index: number, slot: ScenarioSlot) {
     setSlots((current) => current.map((item, itemIndex) => itemIndex === index ? slot : item));
+    setActiveSlotIndex(index);
     onErrors([]);
+    onScenarioChange?.();
   }
 
   function loadReference() {
@@ -71,7 +104,12 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
       const decision = REFERENCE_SCENARIO.decisions[index];
       return decision ? { ...decision } : {};
     }));
+    const firstDistrictIndex = REFERENCE_SCENARIO.decisions.findIndex((decision) =>
+      MEASURE_BY_ID.get(decision.measureId)?.scope === "district",
+    );
+    setActiveSlotIndex(firstDistrictIndex >= 0 ? firstDistrictIndex : null);
     onErrors([]);
+    onScenarioChange?.();
   }
 
   function calculate() {
@@ -111,20 +149,42 @@ export function ScenarioBuilder({ onSimulate, onErrors }: ScenarioBuilderProps) 
         </button>
       </div>
 
-      <div className="mt-6 grid gap-3">
-        {slots.map((slot, index) => (
-          <DecisionSlot
-            key={index}
-            number={index + 1}
-            slot={slot}
-            errors={errorsForSlot(slot)}
-            selectedElsewhere={new Set(slots.flatMap((item, itemIndex) =>
-              itemIndex !== index && item.measureId ? [item.measureId] : [],
-            ))}
-            onChange={(next) => updateSlot(index, next)}
-            onClear={() => updateSlot(index, {})}
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+        <div className="grid min-w-0 gap-3">
+          {slots.map((slot, index) => (
+            <DecisionSlot
+              key={index}
+              number={index + 1}
+              slot={slot}
+              active={activeSlotIndex === index}
+              errors={errorsForSlot(slot)}
+              selectedElsewhere={new Set(slots.flatMap((item, itemIndex) =>
+                itemIndex !== index && item.measureId ? [item.measureId] : [],
+              ))}
+              onActivate={() => setActiveSlotIndex(index)}
+              onChange={(next) => updateSlot(index, next)}
+              onClear={() => updateSlot(index, {})}
+            />
+          ))}
+        </div>
+        <div className="min-w-0 lg:sticky lg:top-4">
+          <h3 className="text-lg font-semibold text-slate-950">Районы Астаны</h3>
+          <p className="mb-3 mt-1 text-sm leading-6 text-slate-600">
+            {activeDistrictMeasure && activeSlotIndex !== null
+              ? `Решение ${activeSlotIndex + 1}: ${activeDistrictMeasure.name}. Выберите район на карте или в списке.`
+              : "Выберите районную меру в слоте, затем укажите район на карте."}
+          </p>
+          <DistrictMap
+            values={BASELINE_DISTRICT_VALUES}
+            selectedDistrictId={activeDistrictMeasure ? activeSlot?.districtId : undefined}
+            highlightedDistrictIds={DISTRICTS.filter((district) => disabledDistrictReasons[district.id]).map((district) => district.id)}
+            disabledDistrictReasons={disabledDistrictReasons}
+            onDistrictClick={activeDistrictMeasure && activeSlotIndex !== null
+              ? (districtId) => updateSlot(activeSlotIndex, { measureId: activeDistrictMeasure.id, districtId })
+              : undefined}
           />
-        ))}
+          <p className="mt-2 text-xs text-slate-500">Цвет показывает исходную оценку района D до выбора мер.</p>
+        </div>
       </div>
 
       <div className="mt-6 border-t border-slate-200 pt-5">
