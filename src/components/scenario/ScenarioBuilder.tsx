@@ -19,8 +19,11 @@ import type { ScenarioSlot } from "./DecisionSlot";
 import { remainingMeasuresHint, ValidationSummary } from "./ValidationSummary";
 
 type ScenarioBuilderProps = {
-  onSimulate: (result: SimulationResult) => void;
+  onSimulate: (result: SimulationResult, scenario: ScenarioInput) => void;
   onErrors: (errors: ValidationError[]) => void;
+  initialScenario?: ScenarioInput;
+  initialResult?: SimulationResult;
+  onChange?: () => void;
   onScenarioChange?: () => void;
   aside?: ReactNode;
 };
@@ -51,10 +54,21 @@ export function toScenarioInput(slots: readonly ScenarioSlot[]): ScenarioInput {
   return { decisions };
 }
 
-export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange, aside }: ScenarioBuilderProps) {
-  const [slots, setSlots] = useState<ScenarioSlot[]>(emptySlots);
-  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(null);
-  const [lastResult, setLastResult] = useState<SimulationResult | null>(null);
+export function ScenarioBuilder({ onSimulate, onErrors, initialScenario, initialResult, onChange, onScenarioChange, aside }: ScenarioBuilderProps) {
+  const [slots, setSlots] = useState<ScenarioSlot[]>(() => initialScenario
+    ? Array.from({ length: SLOT_COUNT }, (_, index) => {
+      const decision = initialScenario.decisions[index];
+      return decision ? { ...decision } : {};
+    })
+    : emptySlots());
+  const [activeSlotIndex, setActiveSlotIndex] = useState<number | null>(() => {
+    if (!initialScenario) return null;
+    const index = initialScenario.decisions.findIndex((decision) =>
+      MEASURE_BY_ID.get(decision.measureId)?.scope === "district",
+    );
+    return index >= 0 ? index : null;
+  });
+  const [lastResult, setLastResult] = useState<SimulationResult | null>(initialResult ?? null);
   const [mapLayer, setMapLayer] = useState<"after" | "delta">("after");
   const rightColumnRef = useRef<HTMLDivElement>(null);
   const asideRef = useRef<HTMLDivElement>(null);
@@ -125,6 +139,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange, aside 
     setLastResult(null);
     setMapLayer("after");
     onErrors([]);
+    onChange?.();
     onScenarioChange?.();
   }
 
@@ -140,6 +155,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange, aside 
     setLastResult(null);
     setMapLayer("after");
     onErrors([]);
+    onChange?.();
     onScenarioChange?.();
   }
 
@@ -160,7 +176,7 @@ export function ScenarioBuilder({ onSimulate, onErrors, onScenarioChange, aside 
     onErrors([]);
     setLastResult(result);
     setMapLayer("after");
-    onSimulate(result);
+    onSimulate(result, scenario);
   }
 
   return (

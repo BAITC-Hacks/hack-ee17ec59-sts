@@ -23,6 +23,8 @@ export type OptimizationConstraints = {
 };
 let memo: OptimizedScenario[] | undefined;
 let ranked: OptimizedScenario[] | undefined;
+let worstRanked: OptimizedScenario[] | undefined;
+let sortedScores: Float64Array | undefined;
 let elapsedMs = 0;
 function serverOnly() {
   if (typeof window !== "undefined") throw new Error("Оптимизатор вызывается только на сервере через API");
@@ -114,14 +116,29 @@ export function enumerateValid(): OptimizedScenario[] {
   return memo;
 }
 export function optimizerStats() { enumerateValid(); return { count: memo!.length, elapsedMs }; }
-export function findBest(topN = 10, constraints: OptimizationConstraints = {}): OptimizedScenario[] {
+function tieOrder(a: OptimizedScenario, b: OptimizedScenario) {
+  if (a.cost !== b.cost) return a.cost - b.cost;
+  const left = a.scenario.decisions, right = b.scenario.decisions;
+  for (let i = 0; i < left.length; i++) {
+    if (left[i].measureId !== right[i].measureId) return left[i].measureId < right[i].measureId ? -1 : 1;
+  }
+  for (let i = 0; i < left.length; i++) {
+    const l = left[i].districtId ?? "", r = right[i].districtId ?? "";
+    if (l !== r) return l < r ? -1 : 1;
+  }
+  return 0;
+}
+function ranking() {
+  ranked ??= [...enumerateValid()].sort((a, b) => b.score - a.score || tieOrder(a, b));
+  return ranked;
+}
+function select(entries: OptimizedScenario[], topN: number, constraints: OptimizationConstraints): OptimizedScenario[] {
   serverOnly();
   if (!Number.isFinite(topN) || Math.floor(topN) <= 0) return [];
   if ((constraints.budgetMax !== undefined && !Number.isFinite(constraints.budgetMax)) ||
       (constraints.minDistrictScore !== undefined && !Number.isFinite(constraints.minDistrictScore))) return [];
-  ranked ??= [...enumerateValid()].sort((a, b) => b.score - a.score || a.cost - b.cost);
   const found: OptimizedScenario[] = [];
-  for (const entry of ranked) {
+  for (const entry of entries) {
     if (entry.cost > (constraints.budgetMax ?? BUDGET_LIMIT) || entry.dMin < (constraints.minDistrictScore ?? -Infinity)) continue;
     const decisions = entry.scenario.decisions;
     if (constraints.mustInclude?.some(id => !decisions.some(d => d.measureId === id))) continue;
@@ -132,6 +149,42 @@ export function findBest(topN = 10, constraints: OptimizationConstraints = {}): 
     if (found.length >= Math.floor(topN)) break;
   }
   return found;
+}
+
+export function findBest(topN = 10, constraints: OptimizationConstraints = {}): OptimizedScenario[] {
+  serverOnly();
+  return select(ranking(), topN, constraints);
+}
+export function findWorst(topN = 1, constraints: OptimizationConstraints = {}): OptimizedScenario[] {
+  serverOnly();
+  worstRanked ??= [...enumerateValid()].sort((a, b) => a.score - b.score || tieOrder(a, b));
+  return select(worstRanked, topN, constraints);
+}
+
+export type ScoreRank = { rank: number; total: number; percentile: number };
+export function scoreRank(input: ScenarioInput): ScoreRank | { error: string } {
+  serverOnly();
+  if (!validateScenario(input).valid) return { error: "Перцентиль доступен только для валидного набора из пяти решений." };
+  const result = simulateScenario(input);
+  if (!result.valid) return { error: "Не удалось рассчитать сценарий для рейтинга." };
+  sortedScores ??= new Float64Array(ranking().map(entry => entry.score));
+  const scores = sortedScores, total = scores.length;
+  // Binary boundaries; absorb floating summation noise, not displayed rounding.
+  const epsilon = 1e-10;
+  function boundary(threshold: number, inclusive: boolean) {
+    let lo = 0, hi = total;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (inclusive ? scores[mid] <= threshold : scores[mid] < threshold) hi = mid;
+      else lo = mid + 1;
+    }
+    return lo;
+  }
+  const better = boundary(result.score + epsilon, true);
+  const worse = total - boundary(result.score - epsilon, false);
+  // Tied scores share a rank; anchor the extreme groups at 1 and total.
+  const rank = better === 0 ? 1 : worse === 0 ? total : better + 1;
+  return { rank, total, percentile: 100 * worse / total };
 }
 
 export type ParetoPoint = { budget: number; score: number; cost: number; scenario: ScenarioInput };

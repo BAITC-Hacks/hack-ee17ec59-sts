@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { enumerateValid, findBest, optimizerStats, suggestSwaps, pareto, timeline, evaluate, MEASURES, REFERENCE_SCENARIO, simulateScenario, simulateWithShare, validateScenario } from "../src/lib/simulation";
+import { enumerateValid, findBest, findWorst, scoreRank, optimizerStats, suggestSwaps, pareto, timeline, evaluate, MEASURES, REFERENCE_SCENARIO, simulateScenario, simulateWithShare, validateScenario } from "../src/lib/simulation";
 import { effectShare } from "../src/lib/simulation/numeric";
+import { engineTools, executeTool } from "../src/lib/simulation/tools";
 
 describe("full server optimizer", () => {
   it("enumerates once, matches scoring across the search and returns a valid optimum", () => {
@@ -42,7 +43,82 @@ describe("full server optimizer", () => {
   });
 });
 
+describe("agent tool dispatcher", () => {
+  it("publishes eight Chat Completions schemas with Russian descriptions", () => {
+    expect(engineTools).toHaveLength(8);
+    expect(new Set(engineTools.map(t => t.function.name)).size).toBe(8);
+    for (const tool of engineTools) {
+      expect(tool.type).toBe("function");
+      expect(tool.function.description).toMatch(/[А-Яа-я]/);
+      expect(tool.function.parameters).toMatchObject({ type: "object", additionalProperties: false });
+    }
+  });
+  it.each(["evaluate_scenario", "validate_scenario", "find_best", "find_worst", "suggest_swaps", "pareto", "timeline", "score_rank"])("executes %s through the public dispatcher", name => {
+    const args = ["find_best", "find_worst", "pareto"].includes(name) ? {} : { scenario: REFERENCE_SCENARIO };
+    const output = executeTool(name, JSON.stringify(args));
+    expect(output).not.toHaveProperty("error");
+    expect(JSON.stringify(output).length).toBeGreaterThan(2);
+  });
+  it("caps result sizes, rounds only the tool output and preserves the engine cache", () => {
+    const best = executeTool("find_best", {}) as { score: number }[];
+    expect(best).toHaveLength(5);
+    expect(best[0].score).toBe(57.24);
+    expect(findBest(1)[0].score).toBeCloseTo(57.236735, 8);
+    expect(executeTool("evaluate_scenario", { scenario: REFERENCE_SCENARIO })).toMatchObject({ score: 56.54, cost: 95 });
+    expect(Object.keys(executeTool("timeline", { scenario: REFERENCE_SCENARIO }) as object).sort()).toEqual(["byMeasure", "score"]);
+    expect(executeTool("validate_scenario", { scenario: { decisions: [] } })).toMatchObject({ valid: false });
+  });
+  it("passes constraints through find_best without changing district semantics", () => {
+    const result = executeTool("find_best", { constraints: { avoidDistricts: ["yesil"], budgetMax: 80, mustInclude: ["M3"] } }) as ReturnType<typeof findBest>;
+    expect(result).toHaveLength(5);
+    for (const row of result) {
+      expect(row.cost).toBeLessThanOrEqual(80);
+      expect(row.scenario.decisions.every(d => d.districtId !== "yesil")).toBe(true);
+      expect(row.scenario.decisions.some(d => d.measureId === "M3")).toBe(true);
+    }
+  });
+  it.each([
+    ["unknown", {}], ["__proto__", {}], ["evaluate_scenario", "{"], ["evaluate_scenario", {}],
+    ["find_best", { topN: 500 }], ["find_best", { constraints: { avoidDistricts: ["wrong"] } }],
+    ["find_best", { constraints: { budgetMax: "80" } }], ["pareto", { step: 0 }],
+    ["timeline", { scenario: { decisions: [{ measureId: "M3" }] } }], ["score_rank", null],
+  ])("returns a Russian error for invalid %s arguments", (name, args) => {
+    const result = executeTool(name as string, args) as { error: string };
+    expect(result.error).toMatch(/[А-Яа-я]/);
+  });
+});
+
 describe("constrained tools and timeline", () => {
+  it("finds deterministic worst cases and ranks extremes and the reference by score", () => {
+    const worst = findWorst(10), best = findBest(10);
+    expect(worst).toHaveLength(10);
+    for (const entry of worst) {
+      expect(validateScenario(entry.scenario).valid).toBe(true);
+      expect(entry.score).toBeLessThanOrEqual(best.at(-1)!.score);
+    }
+    for (let i = 1; i < worst.length; i++) {
+      expect(worst[i].score).toBeGreaterThanOrEqual(worst[i - 1].score);
+      if (worst[i].score === worst[i - 1].score) expect(worst[i].cost).toBeGreaterThanOrEqual(worst[i - 1].cost);
+    }
+    expect(findWorst(10)).toEqual(worst);
+    expect(findWorst(3, { budgetMax: 80, avoidDistricts: ["yesil"] }).every(r =>
+      r.cost <= 80 && r.scenario.decisions.every(d => d.districtId !== "yesil"))).toBe(true);
+    expect(findWorst(1, { exclude: MEASURES.map(m => m.id) })).toEqual([]);
+    const topRank = scoreRank(best[0].scenario), bottomRank = scoreRank(worst[0].scenario), reference = scoreRank(REFERENCE_SCENARIO);
+    if ("error" in topRank || "error" in bottomRank || "error" in reference) throw new Error("Expected ranks");
+    expect(topRank.rank).toBe(1);
+    expect(bottomRank.rank).toBe(bottomRank.total);
+    expect(bottomRank.percentile).toBe(0);
+    expect(reference.percentile).toBeGreaterThan(0);
+    expect(reference.percentile).toBeLessThan(100);
+    const evaluated = evaluate(REFERENCE_SCENARIO);
+    if (!evaluated.valid) throw new Error("Expected valid reference");
+    const worse = enumerateValid().filter(r => r.score < evaluated.score - 1e-10).length;
+    expect(reference.percentile).toBe(100 * worse / enumerateValid().length);
+    expect(scoreRank({ decisions: [...REFERENCE_SCENARIO.decisions].reverse() })).toEqual(reference);
+    expect(scoreRank({ decisions: [] })).toHaveProperty("error");
+    console.log("RANK", JSON.stringify({ worst: worst[0], reference }));
+  });
   it("filters required/excluded measures, exact placements, districts and minimum district score", () => {
     const noYesil = findBest(10, { avoidDistricts: ["yesil"] });
     expect(noYesil).toHaveLength(10);

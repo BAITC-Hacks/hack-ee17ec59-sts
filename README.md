@@ -34,6 +34,29 @@ npm run start
 
 Быстрый demo flow: нажмите **«Загрузить эталонный сценарий»**, затем **«Рассчитать сценарий»**. Ожидаемый результат — расход 95/100 и Score около 56.54 при baseline 52.56.
 
+## Docker (Next.js standalone)
+
+Нужны Docker и Docker Compose **2.24+**. Запуск без ключа и без файла `.env`
+использует fallback:
+
+```bash
+docker compose build
+docker compose up -d
+curl -I http://localhost:3000
+docker compose down
+```
+
+Для AI скопируйте `.env.example` в `.env` (`copy .env.example .env` в Windows
+или `cp .env.example .env` в Linux/macOS). Опциональные переменные:
+`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Не коммитьте заполненный `.env`.
+Compose читает его только при запуске контейнера; отсутствие файла допустимо.
+Entrypoint также подставляет эти значения в прежние `OPENAI_*` имена для
+текущего `/api/analyze`, если прежние переменные не заданы.
+
+Сборка проходит в нескольких стадиях на `node:20-alpine`; финальный контейнер
+запускает standalone-сервер от непривилегированного пользователя на порту 3000.
+Исходники `.env*`, локальные зависимости и кэши в образ не копируются.
+
 ## Документация
 
 - [Продуктовые требования](docs/PRD.md)
