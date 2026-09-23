@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+pydantic>=2
+streamlit
+numpy
+pandas
+plotly
+openai
+pytest
+httpx
+python-dotenv
