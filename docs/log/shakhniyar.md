@@ -1,5 +1,14 @@
 # Лог: Шахнияр
 
+### 15:59 — U6: Docker standalone и подготовка чистого прогона
+- **Сделано:** multi-stage node:20-alpine, standalone, non-root runtime, optional .env в Compose, .dockerignore; env bridge для LLM_* и прежнего analyze route. В README изменена только инструкция Docker, фронт/карта не тронуты.
+- **Ключевой промпт:** «U6 + R1 — Docker и чистый прогон… клонируй рядом… npm ci, npm test, npm run build».
+- **Проверка:** standalone build успешен, production GET / и static JS — HTTP 200 на 3000; тестовый сервер остановлен. Docker CLI не найден ни в PATH, ни в стандартной установке Windows, контейнерный запуск здесь недоступен.
+- **R1 репетиция:** чистый git clone --no-local коммита U6 рядом в ../clean-check, Node 22.23.2, 15:59:27–16:03:05. npm ci 45.37 с; lint 87.97 с; npm test 19.28 с (62 passed); build 65.06 с; всего 217.73 с. Все exit 0; git status клона чистый. После проверки в коммит добавлен только отчёт/статусы.
+- **Синхронизация:** сохранён входящий E3a коллег с Apply/Undo и /api/advice. После rebase два теста превысили 5 с при параллельном холодном переборе; включён fileParallelism:false и интеграционный testTimeout 15 с. Итог: 92 теста и standalone build зелёные; исходные файлы фронта не менялись нашим коммитом.
+- **Очистка:** проверены абсолютный путь и HEAD временного клона. Две попытки удаления через PowerShell отклонены автоматической проверкой: blocked by policy. ../clean-check оставлен, никаких файлов проекта не удалено. Финальный R1 после фриза остаётся открытым.
+- **Блокеры / нужно от других:** запустить docker compose build/up/curl/down на машине с Docker; U6 остаётся review до этого smoke.
+
 ### 15:54 — E3c: готовые tools для агента
 - **Сделано:** восемь Chat Completions tools с русскими описаниями и JSON Schema из Zod; executeTool принимает JSON/объект, валидирует аргументы и возвращает компактный ответ с округлением. Неизвестные инструменты/ошибки не бросают исключений наружу.
 - **Ключевой промпт:** «engineTools… executeTool… каждый tool вызывается через executeTool… find_best с avoidDistricts».
